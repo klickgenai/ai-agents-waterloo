@@ -15,10 +15,11 @@ const PULSE_WSS_URL = "wss://waves-api.smallest.ai/api/v1/pulse/get_text";
  * the server closes the connection and won't process new audio on it.
  *
  * Usage:
- *   connect()       — open connection (call early to pre-warm)
- *   sendAudio()     — stream PCM audio
- *   endUtterance()  — send "end", wait for final, return transcript, disconnect
- *   disconnect()    — force-close (cleanup)
+ *   connect()         — open connection (call early to pre-warm)
+ *   sendAudio()       — stream PCM audio
+ *   endUtterance()    — send "end", wait for final, return transcript, disconnect
+ *   cancelUtterance() — reset state WITHOUT disconnecting (when Pulse never responded)
+ *   disconnect()      — force-close (cleanup)
  */
 export class PulseSTTPipeline {
   private ws: WebSocket | null = null;
@@ -33,6 +34,12 @@ export class PulseSTTPipeline {
   private audioChunksSent = 0;
   private gotAnyResponse = false;
   private gotLastFinal = false;
+
+  // Connection reuse / idle timer
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly IDLE_TIMEOUT_MS = 30_000;
+  private static readonly MAX_REUSE_COUNT = 15;
+  private reuseCount = 0;
 
   constructor(apiKey: string, callbacks: STTCallbacks) {
     this.apiKey = apiKey;
@@ -65,6 +72,7 @@ export class PulseSTTPipeline {
         clearTimeout(timeout);
         this.connected = true;
         this.connectPromise = null;
+        this.resetIdleTimer();
         console.log("[PulseSTT] Connected");
         resolve();
       });
@@ -106,6 +114,7 @@ export class PulseSTTPipeline {
         console.error("[PulseSTT] Error:", err.message);
         this.connected = false;
         this.connectPromise = null;
+        this.clearIdleTimer();
         this.callbacks.onError(err);
         if (!this.connected) reject(err);
       });
@@ -113,6 +122,7 @@ export class PulseSTTPipeline {
       this.ws.on("close", (code, reason) => {
         this.connected = false;
         this.connectPromise = null;
+        this.clearIdleTimer();
         console.log(`[PulseSTT] Disconnected (code=${code})`);
       });
     });
@@ -122,6 +132,7 @@ export class PulseSTTPipeline {
 
   /** Reset per-utterance state. Call before streaming audio for a new utterance. */
   resetUtterance(): void {
+    this.clearIdleTimer();
     this.accumulatedFinalText = "";
     this.lastInterimText = "";
     this.audioChunksSent = 0;
@@ -131,6 +142,7 @@ export class PulseSTTPipeline {
 
   sendAudio(pcmBuffer: Buffer): void {
     if (this.ws && this.connected && this.ws.readyState === WebSocket.OPEN) {
+      this.clearIdleTimer();
       // Apply gain boost to compensate for browser echo cancellation suppressing mic
       const boosted = this.applyGain(pcmBuffer);
       this.ws.send(boosted);
@@ -189,6 +201,8 @@ export class PulseSTTPipeline {
    * then DISCONNECT (Pulse won't accept new audio after "end").
    */
   async endUtterance(): Promise<string> {
+    this.clearIdleTimer();
+
     if (!this.ws || !this.connected) {
       return this.getBestText();
     }
@@ -254,11 +268,65 @@ export class PulseSTTPipeline {
     return this.connected && this.ws?.readyState === WebSocket.OPEN;
   }
 
+  hadResponse(): boolean {
+    return this.gotAnyResponse;
+  }
+
+  getGain(): number {
+    return this.currentGain;
+  }
+
+  /**
+   * Cancel utterance WITHOUT disconnecting — reuse the connection.
+   * Only valid when Pulse never responded (no transcript data to lose).
+   * Returns true if connection was preserved, false if caller should use endUtterance().
+   */
+  cancelUtterance(): boolean {
+    // Must use endUtterance() if Pulse already responded
+    if (this.gotAnyResponse) return false;
+
+    // Connection must be alive
+    if (!this.ws || !this.connected || this.ws.readyState !== WebSocket.OPEN) return false;
+
+    // Safety limit — force full reconnect after too many reuses
+    if (this.reuseCount >= PulseSTTPipeline.MAX_REUSE_COUNT) {
+      console.log(`[PulseSTT] cancelUtterance: Max reuse count (${PulseSTTPipeline.MAX_REUSE_COUNT}) reached, disconnecting`);
+      this.disconnectQuiet();
+      return false;
+    }
+
+    const chunksSent = this.audioChunksSent;
+    this.resetUtterance();
+    this.currentGain = 1.0;
+    this.reuseCount++;
+    this.resetIdleTimer();
+
+    console.log(`[PulseSTT] cancelUtterance: Connection preserved (reuse #${this.reuseCount}, ${chunksSent} chunks sent with no response)`);
+    return true;
+  }
+
+  private resetIdleTimer(): void {
+    this.clearIdleTimer();
+    this.idleTimer = setTimeout(() => {
+      console.log(`[PulseSTT] Idle timeout (${PulseSTTPipeline.IDLE_TIMEOUT_MS / 1000}s) — disconnecting`);
+      this.disconnectQuiet();
+    }, PulseSTTPipeline.IDLE_TIMEOUT_MS);
+  }
+
+  private clearIdleTimer(): void {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+  }
+
   private getBestText(): string {
     return this.accumulatedFinalText.trim() || this.lastInterimText.trim();
   }
 
   private disconnectQuiet(): void {
+    this.clearIdleTimer();
+    this.reuseCount = 0;
     if (this.ws) {
       try { this.ws.close(); } catch { /* ignore */ }
       this.ws = null;

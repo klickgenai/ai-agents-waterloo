@@ -1472,6 +1472,31 @@ body.drawer-open .drawer-backdrop {
   animation: live-pulse 1.2s ease-in-out infinite;
 }
 
+/* Mic suppression indicator */
+.mic-recover-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: mic-recover-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mic-recover-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+.voice-overlay.mic-suppressed .voice-state-text {
+  color: var(--amber);
+}
+
+.voice-overlay.mic-suppressed .voice-orb {
+  opacity: 0.6;
+}
+
 @keyframes dots {
   0%  { content: ''; }
   25% { content: '.'; }

@@ -581,6 +581,9 @@ wss.on("connection", (ws) => {
               await saveSession(summary);
               sendJSON(ws, { type: "session_ended", summary: { sessionId: summary.sessionId, actionItems: summary.actionItems } });
             },
+            onMicStatus: (status) => {
+              sendJSON(ws, { type: "mic_status", status });
+            },
             onError: (error) => {
               sendJSON(ws, { type: "error", message: error.message });
             },

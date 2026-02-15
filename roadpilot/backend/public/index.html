@@ -875,10 +875,15 @@
     function closeVoice() {
       voiceActive = false;
       const overlay = document.getElementById("voiceOverlay");
-      overlay.classList.remove("active", "state-listening", "state-thinking", "state-speaking");
+      overlay.classList.remove("active", "state-listening", "state-thinking", "state-speaking", "mic-suppressed");
       stopParticles();
       stopVoiceSession();
       stopCallTimer();
+      // Clear mic suppression state
+      micSuppressed = false;
+      postTtsConfirmOverride = null;
+      clearTimeout(micSuppressedTimer);
+      micSuppressedTimer = null;
       loadDashboard();
     }
 
@@ -979,18 +984,61 @@
           updateVoiceState("listening", "Session ended");
           break;
 
+        case "mic_status":
+          handleMicStatus(msg.status);
+          break;
+
         case "error":
           console.error("[Voice Error]", msg.message);
           break;
       }
     }
 
+    // ─── Mic Suppression Status ─────────────────────────────────────────────
+    let micSuppressedTimer = null;
+    let micSuppressed = false;
+    const SUPPRESSION_AUTO_CLEAR_MS = 15000;
+
+    function handleMicStatus(status) {
+      const overlay = document.getElementById("voiceOverlay");
+      const stateText = document.getElementById("voiceStateText");
+
+      if (status === "suppressed") {
+        micSuppressed = true;
+        overlay.classList.add("mic-suppressed");
+        stateText.innerHTML = '<span class="mic-recover-dot"></span>Mic recovering — try again in a moment<span class="dots"></span>';
+        // Temporarily increase post-TTS confirm frames to filter more aggressively
+        postTtsConfirmOverride = 6;
+        console.log("[MicStatus] Suppressed — increased POST_TTS_CONFIRM_FRAMES to 6");
+        // Auto-clear after 15s if server doesn't send "ready"
+        clearTimeout(micSuppressedTimer);
+        micSuppressedTimer = setTimeout(function() { handleMicStatus("ready"); }, SUPPRESSION_AUTO_CLEAR_MS);
+      } else if (status === "ready") {
+        micSuppressed = false;
+        overlay.classList.remove("mic-suppressed");
+        stateText.innerHTML = 'Tasha is listening...<span class="dots"></span>';
+        postTtsConfirmOverride = null;
+        console.log("[MicStatus] Ready — reset POST_TTS_CONFIRM_FRAMES");
+        clearTimeout(micSuppressedTimer);
+        micSuppressedTimer = null;
+      }
+    }
+
+    // Override for POST_TTS_CONFIRM_FRAMES during suppression
+    let postTtsConfirmOverride = null;
+
     // ─── Voice State ─────────────────────────────────────────────────────────
     function updateVoiceState(state, text) {
       const orb = document.getElementById("voiceOrb");
       orb.className = "voice-orb " + state;
-      document.getElementById("voiceStateText").innerHTML =
-        text + (state === "listening" || state === "thinking" ? '<span class="dots"></span>' : "");
+      // Preserve mic suppression message when returning to listening state
+      if (state === "listening" && micSuppressed) {
+        document.getElementById("voiceStateText").innerHTML =
+          '<span class="mic-recover-dot"></span>Mic recovering — try again in a moment<span class="dots"></span>';
+      } else {
+        document.getElementById("voiceStateText").innerHTML =
+          text + (state === "listening" || state === "thinking" ? '<span class="dots"></span>' : "");
+      }
 
       // Update overlay state class for background glow
       const overlay = document.getElementById("voiceOverlay");
@@ -1126,13 +1174,14 @@
         currentAudioSource = null;
         nextEndTime = 0;
         pendingDecode = null;
-        // Recalibrate noise floor after TTS playback ends — echo cancellation
-        // may have shifted audio levels, so the VAD needs a fresh baseline.
-        // Keep existing noise floor as starting point (don't reset to 0 — that
-        // would make the threshold = MIN_SPEECH_THRESHOLD and trigger false positives).
+        // After TTS ends, echo cancellation suppresses mic for 10-30s.
+        // Enforce minimum noise floor so threshold doesn't drop to MIN_SPEECH_THRESHOLD
+        // and trigger false positives on ambient noise.
+        noiseFloor = Math.max(noiseFloor, initialNoiseFloor);
         noiseCalibrationFrames = NOISE_CALIBRATION_COUNT; // Skip calibration phase, keep adapting
         consecutiveSpeechFrames = 0;
-        console.log("[VAD] Recalibrating noise floor after TTS playback (baseline:", noiseFloor.toFixed(5), ")");
+        ttsEndTime = Date.now(); // Start VAD holdoff period
+        console.log("[VAD] TTS ended — noise floor set to max(current, initial):", noiseFloor.toFixed(5), ", holdoff", VAD_HOLDOFF_MS, "ms");
         return;
       }
 
@@ -1258,20 +1307,24 @@
     let silenceStart = 0;
     let speechStartTime = 0;
     let consecutiveSpeechFrames = 0;
+    let ttsEndTime = 0;             // Timestamp when TTS playback finished
+    const VAD_HOLDOFF_MS = 1500;    // Ignore speech for 1.5s after TTS ends (AEC needs time)
+    const POST_TTS_WINDOW_MS = 3000; // Extra confirm frames required for 3s after TTS
+    const POST_TTS_CONFIRM_FRAMES = 4; // Require 4 consecutive frames (~1.0s) post-TTS
 
     let noiseFloor = 0;
     let initialNoiseFloor = 0;  // Baseline from calibration — used as decay target
     let noiseCalibrationFrames = 0;
     const NOISE_CALIBRATION_COUNT = 6;
     const NOISE_MULTIPLIER = 2.2;
-    const MIN_SPEECH_THRESHOLD = 0.003;
+    const MIN_SPEECH_THRESHOLD = 0.008;  // Raised from 0.003 — ambient noise sits at 0.003-0.006
     const MAX_SPEECH_THRESHOLD = 0.04;
     const MAX_NOISE_FLOOR = 0.015;   // Cap noise floor so threshold can't run away
     const NOISE_ADAPT_UP = 0.02;     // Slow rise (was 0.05)
     const NOISE_ADAPT_DOWN = 0.10;   // Faster fall back toward baseline
     const VAD_SILENCE_DURATION = 1200;
     const MIN_SPEECH_DURATION = 400;
-    const CONFIRM_FRAMES = 2;        // ~512ms instead of ~768ms
+    const CONFIRM_FRAMES = 3;        // ~768ms — filters transient noise bursts
 
     function getSpeechThreshold() {
       const adaptive = noiseFloor * NOISE_MULTIPLIER;
@@ -1377,9 +1430,19 @@
           }
 
           if (vadState === "silence") {
+            // VAD holdoff: ignore speech for a short period after TTS ends
+            // so echo cancellation artifacts don't trigger false speech events
+            if (ttsEndTime && (now - ttsEndTime) < VAD_HOLDOFF_MS) {
+              return;
+            }
             if (rms > threshold) {
               consecutiveSpeechFrames++;
-              if (consecutiveSpeechFrames >= CONFIRM_FRAMES) {
+              // After TTS, echo cancellation creates short bursts of high RMS (2-3 frames)
+              // before crashing to near-zero. Require more confirm frames to filter these out.
+              const timeSinceTTS = ttsEndTime ? (now - ttsEndTime) : Infinity;
+              const confirmTarget = postTtsConfirmOverride != null ? postTtsConfirmOverride : POST_TTS_CONFIRM_FRAMES;
+              const reqFrames = timeSinceTTS < POST_TTS_WINDOW_MS ? confirmTarget : CONFIRM_FRAMES;
+              if (consecutiveSpeechFrames >= reqFrames) {
                 vadState = "speaking";
                 silenceStart = 0;
                 speechStartTime = now;

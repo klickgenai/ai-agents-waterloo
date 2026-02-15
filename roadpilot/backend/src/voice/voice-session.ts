@@ -23,6 +23,7 @@ interface VoiceSessionCallbacks {
   onActionItem: (item: ActionItem) => void;
   onSessionEnded: (summary: SessionSummary) => void;
   onError: (error: Error) => void;
+  onMicStatus?: (status: "suppressed" | "ready") => void;
 }
 
 export interface SessionSummary {
@@ -58,6 +59,8 @@ export class VoiceSession {
   private preFetchedContext: PreFetchedContext = {};
   private audioBuffer: Buffer[] = [];         // Buffer audio while STT connects
   private sttConnecting = false;              // True while awaiting STT connection
+  private consecutiveEmptySpeech = 0;         // Tracks consecutive speech attempts with no transcript
+  private micSuppressedNotified = false;      // True after we've notified client of mic suppression
 
   constructor(
     driverId: string,
@@ -237,7 +240,18 @@ export class VoiceSession {
   async onSpeechEnd(): Promise<void> {
     if (!this.sttPipeline) return;
 
+    // Short burst with no Pulse response = false trigger (echo artifact).
+    // Try to preserve the connection instead of the expensive disconnect/reconnect cycle.
+    if (!this.sttPipeline.hadResponse() && this.sttPipeline.isConnected() && this.audioFrameCount <= 5) {
+      const preserved = this.sttPipeline.cancelUtterance();
+      if (preserved) {
+        console.log(`[VoiceSession ${this.sessionId}] False trigger (${this.audioFrameCount} frames, no STT response) — connection preserved`);
+        return; // Pipeline stays alive, no pre-warm needed
+      }
+    }
+
     console.log(`[VoiceSession ${this.sessionId}] Speech ended — collecting transcript (${this.audioFrameCount} total frames sent)`);
+    const gainAtEnd = this.sttPipeline.getGain();
     const text = await this.sttPipeline.endUtterance();
     // endUtterance() disconnects the pipeline — it's now dead
     this.sttPipeline = null;
@@ -247,10 +261,22 @@ export class VoiceSession {
 
     if (text) {
       console.log(`[VoiceSession ${this.sessionId}] Transcript: "${text}"`);
+      // Reset suppression tracking on successful transcript
+      if (this.micSuppressedNotified) {
+        this.callbacks.onMicStatus?.("ready");
+        this.micSuppressedNotified = false;
+      }
+      this.consecutiveEmptySpeech = 0;
       this.callbacks.onTranscript("user", text);
       await this.handleUserMessage(text);
     } else {
-      console.log(`[VoiceSession ${this.sessionId}] No speech detected`);
+      this.consecutiveEmptySpeech++;
+      console.log(`[VoiceSession ${this.sessionId}] No speech detected (consecutive: ${this.consecutiveEmptySpeech}, gain: ${gainAtEnd.toFixed(1)}x)`);
+      if (this.consecutiveEmptySpeech >= 2 && !this.micSuppressedNotified) {
+        console.log(`[VoiceSession ${this.sessionId}] Mic suppression detected — notifying client`);
+        this.callbacks.onMicStatus?.("suppressed");
+        this.micSuppressedNotified = true;
+      }
     }
   }
 
