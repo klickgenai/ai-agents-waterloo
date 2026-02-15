@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#080c14">
+  <title>RoadPilot</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+  <!-- ─── Sidebar (Desktop 1024px+) ──────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/>
+          <circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/>
+          <path d="M13 13v-3h9v8"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <h2>RoadPilot</h2>
+        <span>Dispatch AI</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="sidebar-nav-item active" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="sidebar-nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>
+        Trips
+      </a>
+      <a class="sidebar-nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Actions
+      </a>
+      <a class="sidebar-nav-item" href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Calls
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-avatar">
+        JD
+        <div class="status-indicator" id="statusDotSidebar"></div>
+      </div>
+      <div class="sidebar-footer-info">
+        <div class="driver-name">John Doe</div>
+        <div class="driver-status">Owner-Operator</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── Main Content ───────────────────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- ─── Mobile Header ──────────────────────────────────────────────────── -->
+    <div class="header">
+      <div class="header-brand">
+        <div class="header-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/>
+            <circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/>
+            <path d="M13 13v-3h9v8"/>
+          </svg>
+        </div>
+        <h1>RoadPilot</h1>
+      </div>
+      <div class="header-actions">
+        <div class="status-dot" id="statusDot" title="Server status"></div>
+        <div class="header-avatar">JD</div>
+      </div>
+    </div>
+
+    <!-- ─── Dashboard ──────────────────────────────────────────────────────── -->
+    <div class="dashboard" id="dashboard">
+      <div class="refresh-indicator" id="refreshIndicator">Pull to refresh...</div>
+
+      <!-- Greeting Banner -->
+      <div class="greeting-banner">
+        <div class="greeting-text" id="greetingText">Good morning, Driver</div>
+        <div class="greeting-location" id="greetingLocation" style="display:none">
+          <span class="location-dot"></span>
+          <span id="locationText">Locating...</span>
+        </div>
+        <div class="greeting-date" id="greetingDate"></div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="card-grid">
+        <div class="card card--green" id="hosCard">
+          <div class="stat-card-header">
+            <div class="stat-icon-container green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="card-label">HOS Remaining</div>
+          </div>
+          <div class="card-value" id="hosValue">--</div>
+          <div class="card-sub" id="hosSub">Loading...</div>
+          <div class="progress-bar"><div class="progress-bar-fill" id="hosProgress" style="width:0%"></div></div>
+        </div>
+
+        <div class="card card--amber" id="revenueCard">
+          <div class="stat-card-header">
+            <div class="stat-icon-container amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="card-label">This Week</div>
+          </div>
+          <div class="card-value" id="revenueValue">$0</div>
+          <div class="card-sub" id="revenueSub">Revenue</div>
+        </div>
+
+        <div class="card card--cyan" id="fuelCard">
+          <div class="stat-card-header">
+            <div class="stat-icon-container cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17"/><path d="M13 10h4a2 2 0 0 1 2 2v8"/><path d="M21 15l-2-3"/><rect x="3" y="10" width="10" height="6" rx="1"/></svg>
+            </div>
+            <div class="card-label">Cheapest Fuel</div>
+          </div>
+          <div class="card-value" id="fuelValue">--</div>
+          <div class="card-sub" id="fuelSub">Loading...</div>
+        </div>
+
+        <div class="card card--blue" id="parkingCard">
+          <div class="stat-card-header">
+            <div class="stat-icon-container blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+            </div>
+            <div class="card-label">Parking</div>
+          </div>
+          <div class="card-value" id="parkingValue">--</div>
+          <div class="card-sub" id="parkingSub">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Active Trip -->
+      <div class="card card-full card--green" id="activeTripCard" style="display:none">
+        <div class="trip-header">
+          <div class="card-label">Active Trip</div>
+          <span class="trip-live-badge">Live</span>
+        </div>
+        <div class="trip-route-visual">
+          <div class="trip-dot origin"></div>
+          <div class="trip-line"></div>
+          <div class="trip-dot destination"></div>
+        </div>
+        <div class="trip-route" id="tripRoute">--</div>
+        <div class="trip-details">
+          <span id="tripEta">--</span>
+          <span id="tripDist">--</span>
+        </div>
+      </div>
+
+      <!-- My Trips Section -->
+      <section class="section" id="tripsSection">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>
+          My Trips
+        </div>
+        <div class="trips-grid" id="tripsList">
+          <div class="empty-state" id="noTrips">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>
+            <div class="empty-state-title">No trips yet</div>
+            <div class="empty-state-sub">Ask Tasha to find loads</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Items Section -->
+      <section class="section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Action Items
+        </div>
+        <div class="action-list" id="actionList">
+          <div class="empty-state" id="noActions">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div class="empty-state-title">No pending actions</div>
+            <div class="empty-state-sub">Talk to Tasha to get started</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Calls Section -->
+      <section class="section">
+        <div class="section-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          Recent Calls
+        </div>
+        <div class="call-list" id="callList">
+          <div class="empty-state" id="noCalls">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            <div class="empty-state-title">No recent voice sessions</div>
+            <div class="empty-state-sub">Start a conversation with Tasha</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ─── Talk to Tasha FAB ──────────────────────────────────────────────── -->
+  <div class="fab-container">
+    <button class="fab" id="fabBtn" onclick="openVoice()">
+      <span class="fab-pulse"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Talk to Tasha
+    </button>
+  </div>
+
+  <!-- ─── Voice Overlay ──────────────────────────────────────────────────── -->
+  <div class="voice-overlay" id="voiceOverlay">
+    <div class="voice-overlay-header">
+      <div class="voice-header-left">
+        <div class="voice-ai-avatar" id="voiceAiAvatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+        </div>
+        <div class="voice-header-info">
+          <span class="voice-overlay-title">Tasha</span>
+          <span class="voice-overlay-subtitle" id="voiceSubtitle">Dispatch Assistant</span>
+          <span class="voice-call-timer" id="voiceCallTimer" style="display:none">00:00</span>
+        </div>
+      </div>
+      <button class="voice-close-btn" onclick="closeVoice()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="voice-center">
+      <div class="voice-orb listening" id="voiceOrb">
+        <div class="voice-orb-glow"></div>
+        <div class="voice-orb-ring-3"></div>
+        <div class="voice-orb-ring-2"></div>
+        <div class="voice-orb-ring"></div>
+        <div class="voice-orb-core">
+          <div class="voice-orb-core-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+          </div>
+        </div>
+      </div>
+      <canvas id="micWaveform" width="280" height="50" style="margin-top:10px;border-radius:8px;opacity:0.7;"></canvas>
+      <div id="vadDebug" style="font-family:monospace;font-size:10px;color:#475569;margin-top:2px;text-align:center;"></div>
+      <div class="voice-state-text" id="voiceStateText">Connecting<span class="dots"></span></div>
+      <div class="voice-broker-status" id="voiceBrokerStatus">
+        <span class="broker-dot"></span>
+        <span id="brokerStatusText">Calling broker...</span>
+      </div>
+    </div>
+
+    <div class="voice-transcript" id="voiceTranscript"></div>
+
+    <div class="voice-actions" id="voiceActions"></div>
+
+    <div class="voice-footer">
+      <button class="voice-mute-btn" id="voiceMuteBtn" onclick="toggleMute()" title="Mute microphone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <button class="end-call-btn" onclick="closeVoice()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></svg>
+        End Call
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ─── SVG Icon Constants ─────────────────────────────────────────────────
+    const SVG_ICONS = {
+      truck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>',
+      clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+      dollar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+      fuel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v17"/><path d="M13 10h4a2 2 0 0 1 2 2v8"/><path d="M21 15l-2-3"/><rect x="3" y="10" width="10" height="6" rx="1"/></svg>',
+      parking: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="4"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>',
+      package: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
+      phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+      chart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+      checkCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    };
+
+    // ─── State ───────────────────────────────────────────────────────────────
+    const API = window.location.origin;
+    const DRIVER_ID = "00000000-0000-0000-0000-000000000001";
+    let ws = null;
+    let voiceActive = false;
+    let audioContext = null;
+    let audioQueue = [];
+    let isPlayingAudio = false;
+    let playbackStartTime = 0;
+    let interruptFrameCount = 0;
+    let currentAudioSource = null;
+    const INTERRUPT_CONFIRM_FRAMES = 3;
+    const INTERRUPT_THRESHOLD_MULT = 2.0;
+    const INTERRUPT_GRACE_MS = 500;
+    let micStream = null;
+    let micProcessor = null;
+    let currentLocation = null; // { lat, lng }
+
+    // ─── GPS Location Tracking ────────────────────────────────────────────────
+    function initGPS() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.watchPosition(
+        async (pos) => {
+          currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          // Send to WS if voice session active
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "update_location", lat: currentLocation.lat, lng: currentLocation.lng }));
+          }
+          // Update greeting with location
+          try {
+            const res = await fetch(`${API}/api/reverse-geocode?lat=${currentLocation.lat}&lng=${currentLocation.lng}`);
+            const geo = await res.json();
+            if (geo.city) {
+              const locEl = document.getElementById("greetingLocation");
+              const textEl = document.getElementById("locationText");
+              locEl.style.display = "";
+              textEl.textContent = geo.state ? `${geo.city}, ${geo.state}` : geo.city;
+            }
+          } catch (e) { /* ignore */ }
+        },
+        (err) => { console.warn("[GPS] Error:", err.message); },
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+      );
+    }
+    initGPS();
+
+    // ─── Greeting Banner ──────────────────────────────────────────────────
+    function populateGreeting() {
+      const now = new Date();
+      const hour = now.getHours();
+      let greeting = 'Good evening';
+      if (hour < 12) greeting = 'Good morning';
+      else if (hour < 17) greeting = 'Good afternoon';
+
+      document.getElementById('greetingText').textContent = `${greeting}, Driver`;
+
+      const options = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+      document.getElementById('greetingDate').textContent = now.toLocaleDateString('en-US', options);
+    }
+    populateGreeting();
+
+    // ─── Health Check ────────────────────────────────────────────────────────
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API}/health`);
+        const ok = res.ok;
+        document.getElementById("statusDot").className = ok ? "status-dot" : "status-dot offline";
+        const sidebarDot = document.getElementById("statusDotSidebar");
+        if (sidebarDot) sidebarDot.style.background = ok ? "var(--green)" : "var(--red)";
+      } catch {
+        document.getElementById("statusDot").className = "status-dot offline";
+        const sidebarDot = document.getElementById("statusDotSidebar");
+        if (sidebarDot) sidebarDot.style.background = "var(--red)";
+      }
+    }
+    checkHealth();
+    setInterval(checkHealth, 15000);
+
+    // ─── Dashboard Data ──────────────────────────────────────────────────────
+    async function loadDashboard() {
+      try {
+        let url = `${API}/api/dashboard/${DRIVER_ID}`;
+        if (currentLocation) {
+          url += `?lat=${currentLocation.lat}&lng=${currentLocation.lng}`;
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // HOS
+        if (data.hos) {
+          const driveMins = data.hos.driveTimeRemaining ?? data.hos.drive_time_remaining ?? 0;
+          const hrs = Math.floor(driveMins / 60);
+          const mins = driveMins % 60;
+          document.getElementById("hosValue").textContent = `${hrs}h ${mins}m`;
+          document.getElementById("hosSub").textContent = "Drive time left";
+          const pct = Math.round((driveMins / 660) * 100);
+          const bar = document.getElementById("hosProgress");
+          bar.style.width = pct + "%";
+          bar.className = "progress-bar-fill" + (pct < 15 ? " critical" : pct < 30 ? " warning" : "");
+        }
+
+        // Fuel
+        if (data.fuel?.stations?.length) {
+          const cheapest = data.fuel.stations[0];
+          document.getElementById("fuelValue").textContent = "$" + (cheapest.price || cheapest.dieselPrice);
+          document.getElementById("fuelSub").textContent = (cheapest.name || "Nearby") + " / gal";
+        }
+
+        // Parking
+        if (data.parking?.locations?.length) {
+          const count = data.parking.locations.length;
+          document.getElementById("parkingValue").textContent = count;
+          document.getElementById("parkingSub").textContent = "spots nearby";
+        }
+
+        // Revenue (from booked/in_transit/delivered trips)
+        const trips = data.trips || [];
+        const revenue = trips
+          .filter(t => t.status === "booked" || t.status === "in_transit" || t.status === "delivered")
+          .reduce((sum, t) => sum + (t.rate || 0), 0);
+        document.getElementById("revenueValue").textContent = "$" + revenue.toLocaleString();
+        document.getElementById("revenueSub").textContent = trips.length ? `${trips.filter(t => t.status !== "searching").length} trips` : "Revenue";
+
+        // Active trip card — first in_transit trip
+        const activeTrip = trips.find(t => t.status === "in_transit");
+        const activeTripCard = document.getElementById("activeTripCard");
+        if (activeTrip) {
+          activeTripCard.style.display = "";
+          document.getElementById("tripRoute").textContent = `${activeTrip.origin} → ${activeTrip.destination}`;
+          document.getElementById("tripDist").textContent = `${activeTrip.distance} mi`;
+          document.getElementById("tripEta").textContent = activeTrip.deliveryDate || "--";
+        } else {
+          activeTripCard.style.display = "none";
+        }
+
+        // My Trips
+        renderTrips(trips);
+
+        // Action Items
+        renderActionItems(data.actionItems || []);
+      } catch (err) {
+        console.warn("Dashboard load error:", err);
+      }
+    }
+    loadDashboard();
+
+    function renderActionItems(items) {
+      const list = document.getElementById("actionList");
+      const noActions = document.getElementById("noActions");
+
+      if (!items.length) {
+        noActions.style.display = "";
+        return;
+      }
+      noActions.style.display = "none";
+
+      // SVG icon containers per action type
+      const typeIcons = {
+        loads:         `<div class="action-type-icon" style="background:var(--blue-dim);color:var(--blue)">${SVG_ICONS.package}</div>`,
+        fuel:          `<div class="action-type-icon" style="background:var(--cyan-dim);color:var(--cyan)">${SVG_ICONS.fuel}</div>`,
+        parking:       `<div class="action-type-icon" style="background:var(--blue-dim);color:var(--blue)">${SVG_ICONS.parking}</div>`,
+        hos:           `<div class="action-type-icon" style="background:var(--green-dim);color:var(--green)">${SVG_ICONS.clock}</div>`,
+        broker_call:   `<div class="action-type-icon" style="background:var(--amber-dim);color:var(--amber)">${SVG_ICONS.phone}</div>`,
+        broker_result: `<div class="action-type-icon" style="background:var(--amber-dim);color:var(--amber)">${SVG_ICONS.phone}</div>`,
+        invoice:       `<div class="action-type-icon" style="background:var(--accent-dim);color:var(--accent)">${SVG_ICONS.file}</div>`,
+        profitability: `<div class="action-type-icon" style="background:var(--green-dim);color:var(--green)">${SVG_ICONS.chart}</div>`,
+        default:       `<div class="action-type-icon" style="background:var(--green-dim);color:var(--green)">${SVG_ICONS.checkCircle}</div>`,
+      };
+
+      // Clear existing action cards (keep noActions div)
+      list.querySelectorAll(".action-card").forEach(el => el.remove());
+
+      items.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "action-card";
+        const icon = typeIcons[item.type] || typeIcons.default;
+        card.innerHTML = `
+          <div class="action-card-header">
+            ${icon}
+            <span class="action-title">${esc(item.title)}</span>
+          </div>
+          <div class="action-summary">${esc(item.summary || "")}</div>
+          <div class="action-buttons">
+            ${(item.actionButtons || []).map(btn =>
+              btn.action === "dismiss"
+                ? `<button class="btn btn-secondary" onclick="dismissAction('${item.id}')">${esc(btn.label)}</button>`
+                : `<button class="btn btn-primary" onclick="handleActionBtn('${item.id}','${btn.action}')">${esc(btn.label)}</button>`
+            ).join("")}
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function renderTrips(trips) {
+      const list = document.getElementById("tripsList");
+      const noTrips = document.getElementById("noTrips");
+
+      // Clear existing trip cards (keep empty state)
+      list.querySelectorAll(".trip-card").forEach(el => el.remove());
+
+      if (!trips.length) {
+        noTrips.style.display = "";
+        return;
+      }
+      noTrips.style.display = "none";
+
+      const statusLabel = { searching: "Searching", negotiating: "Negotiating", booked: "Booked", in_transit: "In Transit", delivered: "Delivered" };
+
+      trips.forEach(trip => {
+        const card = document.createElement("div");
+        card.className = "trip-card";
+        card.id = `trip-${trip.id}`;
+        card.innerHTML = `
+          <div class="trip-card-header">
+            <span class="trip-status-badge ${trip.status}">${statusLabel[trip.status] || trip.status}</span>
+            <button class="trip-delete-btn" onclick="deleteTripCard('${trip.id}')" title="Delete trip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+          <div class="trip-card-route">
+            <div class="trip-route-visual">
+              <div class="trip-dot origin"></div>
+              <div class="trip-line"></div>
+              <div class="trip-dot destination"></div>
+            </div>
+            <div class="trip-cities">
+              <span class="trip-origin">${esc(trip.origin)}</span>
+              <span class="trip-dest">${esc(trip.destination)}</span>
+            </div>
+          </div>
+          <div class="trip-card-meta">
+            ${trip.distance ? `<span class="meta-item"><span class="meta-label">Dist</span> <span class="meta-value">${trip.distance} mi</span></span>` : ''}
+            ${trip.weight ? `<span class="meta-item"><span class="meta-label">Wt</span> <span class="meta-value">${(trip.weight / 1000).toFixed(0)}k lbs</span></span>` : ''}
+            ${trip.equipmentType ? `<span class="meta-item"><span class="meta-label">Equip</span> <span class="meta-value">${esc(trip.equipmentType)}</span></span>` : ''}
+            ${trip.brokerName ? `<span class="meta-item"><span class="meta-label">Broker</span> <span class="meta-value">${esc(trip.brokerName)}</span></span>` : ''}
+          </div>
+          <div class="trip-card-rate">
+            <span class="rate-total">$${(trip.rate || 0).toLocaleString()}</span>
+            ${trip.ratePerMile ? `<span class="rate-per-mile">$${trip.ratePerMile.toFixed(2)}/mi</span>` : ''}
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    async function deleteTripCard(id) {
+      const card = document.getElementById(`trip-${id}`);
+      if (card) {
+        card.classList.add("removing");
+        await new Promise(r => setTimeout(r, 300));
+      }
+      try {
+        await fetch(`${API}/api/trips/${id}`, { method: "DELETE" });
+      } catch (e) { /* ignore */ }
+      loadDashboard();
+    }
+
+    async function dismissAction(id) {
+      await fetch(`${API}/api/actions/${id}/dismiss`, { method: "POST" });
+      loadDashboard();
+    }
+
+    async function handleActionBtn(id, action) {
+      if (action === "start_trip" || action === "navigate" || action === "reserve" || action === "download") {
+        await fetch(`${API}/api/actions/${id}/complete`, { method: "POST" });
+        loadDashboard();
+      }
+    }
+
+    // ─── Call Timer ──────────────────────────────────────────────────────────
+    let callTimerInterval = null;
+    let callStartTime = 0;
+
+    function startCallTimer() {
+      callStartTime = Date.now();
+      const timerEl = document.getElementById("voiceCallTimer");
+      const subtitleEl = document.getElementById("voiceSubtitle");
+      timerEl.style.display = "";
+      subtitleEl.style.display = "none";
+      callTimerInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+        const m = String(Math.floor(elapsed / 60)).padStart(2, "0");
+        const s = String(elapsed % 60).padStart(2, "0");
+        timerEl.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopCallTimer() {
+      if (callTimerInterval) clearInterval(callTimerInterval);
+      callTimerInterval = null;
+      const timerEl = document.getElementById("voiceCallTimer");
+      const subtitleEl = document.getElementById("voiceSubtitle");
+      timerEl.style.display = "none";
+      subtitleEl.style.display = "";
+    }
+
+    // ─── Mute Toggle ──────────────────────────────────────────────────────────
+    let isMuted = false;
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      const btn = document.getElementById("voiceMuteBtn");
+      btn.classList.toggle("muted", isMuted);
+      if (micStream) {
+        micStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+      }
+      btn.title = isMuted ? "Unmute microphone" : "Mute microphone";
+      // Update icon
+      btn.innerHTML = isMuted
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2c0 .76-.13 1.49-.35 2.17"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+    }
+
+    // ─── Voice Overlay ───────────────────────────────────────────────────────
+    function openVoice() {
+      voiceActive = true;
+      isMuted = false;
+      document.getElementById("voiceMuteBtn").classList.remove("muted");
+      document.getElementById("voiceOverlay").classList.add("active");
+      document.getElementById("voiceTranscript").innerHTML = "";
+      document.getElementById("voiceActions").innerHTML = "";
+      document.getElementById("voiceBrokerStatus").classList.remove("active");
+      startVoiceSession();
+    }
+
+    function closeVoice() {
+      voiceActive = false;
+      document.getElementById("voiceOverlay").classList.remove("active");
+      stopVoiceSession();
+      stopCallTimer();
+      loadDashboard();
+    }
+
+    // ─── WebSocket Voice Session ─────────────────────────────────────────────
+    async function startVoiceSession() {
+      updateVoiceState("listening", "Connecting...");
+
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      }
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
+      const wsUrl = `${API.replace("http", "ws")}/ws`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: "start_session", driverId: DRIVER_ID }));
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleWSMessage(msg);
+      };
+
+      ws.onclose = () => {
+        if (voiceActive) {
+          updateVoiceState("listening", "Disconnected. Reconnecting...");
+          setTimeout(startVoiceSession, 2000);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error("[WS] Error:", err);
+      };
+    }
+
+    function stopVoiceSession() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "end_session" }));
+        ws.close();
+      }
+      ws = null;
+      stopMic();
+      if (currentAudioSource) { try { currentAudioSource.stop(); } catch(e) {} currentAudioSource = null; }
+      audioQueue = [];
+      isPlayingAudio = false;
+      interruptFrameCount = 0;
+    }
+
+    function handleWSMessage(msg) {
+      switch (msg.type) {
+        case "session_started":
+          startMic();
+          startCallTimer();
+          updateVoiceState("listening", "Tasha is listening...");
+          break;
+
+        case "state_change":
+          if (msg.state === "listening") updateVoiceState("listening", "Tasha is listening...");
+          else if (msg.state === "thinking") updateVoiceState("thinking", "Thinking...");
+          else if (msg.state === "speaking") updateVoiceState("speaking", "Tasha is talking...");
+          break;
+
+        case "transcript":
+          addTranscript(msg.role, msg.text, msg.role === "user" && !msg.final);
+          break;
+
+        case "filler_audio":
+          queueAudio(msg.data);
+          break;
+
+        case "audio_chunk":
+          queueAudio(msg.data);
+          break;
+
+        case "action_item":
+          addVoiceAction(msg.item);
+          break;
+
+        case "session_ended":
+          updateVoiceState("listening", "Session ended");
+          break;
+
+        case "error":
+          console.error("[Voice Error]", msg.message);
+          break;
+      }
+    }
+
+    // ─── Voice State ─────────────────────────────────────────────────────────
+    function updateVoiceState(state, text) {
+      const orb = document.getElementById("voiceOrb");
+      orb.className = "voice-orb " + state;
+      document.getElementById("voiceStateText").innerHTML =
+        text + (state === "listening" || state === "thinking" ? '<span class="dots"></span>' : "");
+
+      // Sync avatar speaking ring
+      const avatar = document.getElementById("voiceAiAvatar");
+      if (avatar) {
+        avatar.classList.toggle("speaking", state === "speaking");
+      }
+
+      // Show/hide typing indicator
+      const transcript = document.getElementById("voiceTranscript");
+      const existingTyping = transcript.querySelector(".typing-indicator");
+      if (state === "thinking") {
+        if (!existingTyping) {
+          const typing = document.createElement("div");
+          typing.className = "typing-indicator";
+          typing.innerHTML = `<div class="transcript-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+          transcript.appendChild(typing);
+          transcript.scrollTop = transcript.scrollHeight;
+        }
+      } else if (existingTyping) {
+        existingTyping.remove();
+      }
+    }
+
+    // ─── Transcript ──────────────────────────────────────────────────────────
+    let lastTranscriptEl = null;
+    let lastTranscriptBubble = null;
+
+    function formatTime() {
+      const now = new Date();
+      return now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function createTranscriptBubble(role, text, isInterim) {
+      const bubble = document.createElement("div");
+      bubble.className = `transcript-bubble ${role}`;
+
+      const avatarHtml = role === "user"
+        ? '<div class="transcript-avatar">You</div>'
+        : '<div class="transcript-avatar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div>';
+
+      const label = role === "user" ? "You" : "Tasha";
+
+      bubble.innerHTML = `
+        ${avatarHtml}
+        <div class="transcript-body">
+          <span class="transcript-label">${label}</span>
+          <div class="transcript-msg ${role}${isInterim ? ' interim' : ''}" data-role="${role}"></div>
+          <span class="transcript-time">${formatTime()}</span>
+        </div>
+      `;
+
+      const msgEl = bubble.querySelector(".transcript-msg");
+      msgEl.textContent = text;
+
+      return { bubble, msgEl };
+    }
+
+    function addTranscript(role, text, isInterim) {
+      const container = document.getElementById("voiceTranscript");
+
+      // Remove typing indicator when assistant speaks
+      if (role === "assistant") {
+        const typing = container.querySelector(".typing-indicator");
+        if (typing) typing.remove();
+      }
+
+      // Update existing interim message
+      if (isInterim && lastTranscriptEl && lastTranscriptEl.dataset.role === "user") {
+        lastTranscriptEl.textContent = text;
+        return;
+      }
+
+      // If previous was interim and now we have final from same role, update it
+      if (lastTranscriptEl && lastTranscriptEl.classList.contains("interim") && lastTranscriptEl.dataset.role === role) {
+        lastTranscriptEl.textContent = text;
+        lastTranscriptEl.classList.remove("interim");
+        lastTranscriptEl = null;
+        lastTranscriptBubble = null;
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+
+      const { bubble, msgEl } = createTranscriptBubble(role, text, isInterim);
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+
+      if (isInterim) {
+        lastTranscriptEl = msgEl;
+        lastTranscriptBubble = bubble;
+      } else {
+        lastTranscriptEl = null;
+        lastTranscriptBubble = null;
+      }
+    }
+
+    // ─── Voice Actions (inline chips) ────────────────────────────────────────
+    function addVoiceAction(item) {
+      const container = document.getElementById("voiceActions");
+      const chip = document.createElement("div");
+      chip.className = "voice-action-chip";
+      chip.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div class="chip-text"><div class="chip-title">${esc(item.title)}</div>${item.summary ? `<div class="chip-summary">${esc(item.summary)}</div>` : ''}</div>`;
+      container.appendChild(chip);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ─── Audio Playback Queue ────────────────────────────────────────────────
+    function queueAudio(base64Data) {
+      audioQueue.push(base64Data);
+      if (!isPlayingAudio) {
+        playbackStartTime = Date.now();
+        interruptFrameCount = 0;
+        playNextAudio();
+      }
+    }
+
+    async function playNextAudio() {
+      if (audioQueue.length === 0) {
+        isPlayingAudio = false;
+        currentAudioSource = null;
+        return;
+      }
+
+      isPlayingAudio = true;
+      const base64 = audioQueue.shift();
+
+      try {
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+        const audioBuffer = await audioContext.decodeAudioData(bytes.buffer);
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        currentAudioSource = source;
+        source.onended = () => {
+          if (currentAudioSource === source) currentAudioSource = null;
+          playNextAudio();
+        };
+        source.start(0);
+      } catch (err) {
+        console.error("Audio playback error:", err);
+        currentAudioSource = null;
+        playNextAudio();
+      }
+    }
+
+    // ─── Waveform Visualizer ────────────────────────────────────────────────
+    let waveformAnimId = null;
+    let analyserNode = null;
+
+    function drawWaveform() {
+      const canvas = document.getElementById("micWaveform");
+      if (!canvas || !analyserNode) return;
+      const ctx = canvas.getContext("2d");
+      const bufferLength = analyserNode.fftSize;
+      const dataArray = new Float32Array(bufferLength);
+      analyserNode.getFloatTimeDomainData(dataArray);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) sum += dataArray[i] * dataArray[i];
+      const rms = Math.sqrt(sum / bufferLength);
+      const intensity = Math.min(1, rms * 8);
+
+      const g = Math.round(100 + 155 * intensity);
+      ctx.strokeStyle = `rgba(16, ${g}, 129, ${0.4 + intensity * 0.6})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      const sliceWidth = canvas.width / bufferLength;
+      let x = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i];
+        const y = (v * canvas.height * 2) + canvas.height / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.stroke();
+
+      ctx.fillStyle = `rgba(16, ${g}, 129, ${0.3 + intensity * 0.5})`;
+      ctx.fillRect(0, canvas.height - 4, canvas.width * intensity, 4);
+
+      const thresholdLevel = getSpeechThreshold ? getSpeechThreshold() * 8 : 0;
+      if (thresholdLevel > 0 && thresholdLevel < 1) {
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        const threshX = canvas.width * Math.min(1, thresholdLevel);
+        ctx.moveTo(threshX, canvas.height - 6);
+        ctx.lineTo(threshX, canvas.height);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      waveformAnimId = requestAnimationFrame(drawWaveform);
+    }
+
+    function stopWaveform() {
+      if (waveformAnimId) {
+        cancelAnimationFrame(waveformAnimId);
+        waveformAnimId = null;
+      }
+      const canvas = document.getElementById("micWaveform");
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      analyserNode = null;
+    }
+
+    // ─── Microphone (PCM 16kHz) — Turn-Based VAD ─────────────────────────────
+    let vadState = "silence";
+    let silenceStart = 0;
+    let speechStartTime = 0;
+    let consecutiveSpeechFrames = 0;
+
+    let noiseFloor = 0;
+    let noiseCalibrationFrames = 0;
+    const NOISE_CALIBRATION_COUNT = 6;
+    const NOISE_MULTIPLIER = 2.5;
+    const MIN_SPEECH_THRESHOLD = 0.003;
+    const MAX_SPEECH_THRESHOLD = 0.05;
+    const VAD_SILENCE_DURATION = 1200;
+    const MIN_SPEECH_DURATION = 400;
+    const CONFIRM_FRAMES = 3;
+
+    function getSpeechThreshold() {
+      const adaptive = noiseFloor * NOISE_MULTIPLIER;
+      return Math.min(MAX_SPEECH_THRESHOLD, Math.max(MIN_SPEECH_THRESHOLD, adaptive));
+    }
+
+    async function startMic() {
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+        const micCtx = new AudioContext({ sampleRate: 16000 });
+        const source = micCtx.createMediaStreamSource(micStream);
+
+        analyserNode = micCtx.createAnalyser();
+        analyserNode.fftSize = 2048;
+        source.connect(analyserNode);
+        drawWaveform();
+
+        vadState = "silence";
+        silenceStart = 0;
+        speechStartTime = 0;
+        noiseFloor = 0;
+        noiseCalibrationFrames = 0;
+
+        const processor = micCtx.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = (e) => {
+          if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+          const float32 = e.inputBuffer.getChannelData(0);
+
+          let sum = 0;
+          for (let i = 0; i < float32.length; i++) sum += float32[i] * float32[i];
+          const rms = Math.sqrt(sum / float32.length);
+
+          if (vadState === "silence") {
+            if (noiseCalibrationFrames < NOISE_CALIBRATION_COUNT) {
+              noiseFloor = (noiseFloor * noiseCalibrationFrames + rms) / (noiseCalibrationFrames + 1);
+              noiseCalibrationFrames++;
+              if (noiseCalibrationFrames === NOISE_CALIBRATION_COUNT) {
+                console.log("[VAD] Noise floor calibrated:", noiseFloor.toFixed(5),
+                  "→ speech threshold:", getSpeechThreshold().toFixed(4));
+              }
+              return;
+            } else {
+              noiseFloor = noiseFloor * 0.95 + rms * 0.05;
+            }
+          }
+
+          const threshold = getSpeechThreshold();
+          const now = Date.now();
+
+          const dbg = document.getElementById("vadDebug");
+          if (dbg) {
+            const bar = "\u2588".repeat(Math.min(30, Math.round(rms * 300)));
+            dbg.textContent = `RMS:${rms.toFixed(4)} THR:${threshold.toFixed(4)} [${bar.padEnd(30)}] ${vadState.toUpperCase()}`;
+          }
+
+          if (isPlayingAudio) {
+            const elapsed = Date.now() - playbackStartTime;
+            if (elapsed > INTERRUPT_GRACE_MS && rms > threshold * INTERRUPT_THRESHOLD_MULT) {
+              interruptFrameCount++;
+              if (interruptFrameCount >= INTERRUPT_CONFIRM_FRAMES) {
+                console.log("[VAD] Interrupt — user spoke during playback (" + interruptFrameCount + " frames)");
+                // Stop current audio source immediately
+                if (currentAudioSource) {
+                  try { currentAudioSource.stop(); } catch(e) {}
+                  currentAudioSource = null;
+                }
+                audioQueue = [];
+                isPlayingAudio = false;
+                interruptFrameCount = 0;
+                // Tell backend to abort TTS/Claude stream
+                ws.send(JSON.stringify({ type: "interrupt" }));
+                // Immediately start capturing this speech
+                vadState = "speaking";
+                speechStartTime = now;
+                consecutiveSpeechFrames = 0;
+                silenceStart = 0;
+                ws.send(JSON.stringify({ type: "speech_start" }));
+                sendPCM(float32);
+                console.log("[VAD] Barge-in — now capturing user speech");
+              }
+            } else {
+              interruptFrameCount = 0;
+            }
+            return; // Skip normal VAD processing while audio is playing
+          }
+
+          if (vadState === "silence") {
+            if (rms > threshold) {
+              consecutiveSpeechFrames++;
+              if (consecutiveSpeechFrames >= CONFIRM_FRAMES) {
+                vadState = "speaking";
+                silenceStart = 0;
+                speechStartTime = now;
+                consecutiveSpeechFrames = 0;
+                console.log("[VAD] Speech confirmed (RMS:", rms.toFixed(4), "threshold:", threshold.toFixed(4), ")");
+                ws.send(JSON.stringify({ type: "speech_start" }));
+                sendPCM(float32);
+              }
+            } else {
+              consecutiveSpeechFrames = 0;
+            }
+          } else if (vadState === "speaking") {
+            if (rms > threshold) {
+              silenceStart = 0;
+              sendPCM(float32);
+            } else {
+              silenceStart = now;
+              vadState = "trailing";
+              sendPCM(float32);
+            }
+          } else if (vadState === "trailing") {
+            if (rms > threshold) {
+              vadState = "speaking";
+              silenceStart = 0;
+              sendPCM(float32);
+            } else {
+              const silenceDuration = now - silenceStart;
+              if (silenceDuration >= VAD_SILENCE_DURATION) {
+                const speechDuration = now - speechStartTime;
+                if (speechDuration < MIN_SPEECH_DURATION) {
+                  console.log("[VAD] Ignoring short burst:", speechDuration, "ms");
+                  vadState = "silence";
+                  silenceStart = 0;
+                  ws.send(JSON.stringify({ type: "speech_end" }));
+                } else {
+                  console.log("[VAD] Speech ended — duration:", speechDuration, "ms, silence:", silenceDuration, "ms");
+                  vadState = "silence";
+                  silenceStart = 0;
+                  ws.send(JSON.stringify({ type: "speech_end" }));
+                }
+              } else {
+                sendPCM(float32);
+              }
+            }
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(micCtx.destination);
+        micProcessor = { processor, source, context: micCtx };
+
+        updateVoiceState("listening", "Calibrating mic...");
+        setTimeout(() => {
+          if (vadState === "silence") {
+            updateVoiceState("listening", "Tasha is listening...");
+          }
+        }, 2500);
+      } catch (err) {
+        console.error("Mic error:", err);
+        updateVoiceState("listening", "Microphone access denied");
+      }
+    }
+
+    function sendPCM(float32) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const int16 = new Int16Array(float32.length);
+      for (let i = 0; i < float32.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      }
+      ws.send(int16.buffer);
+    }
+
+    function stopMic() {
+      stopWaveform();
+      if (micProcessor) {
+        micProcessor.processor.disconnect();
+        micProcessor.source.disconnect();
+        micProcessor.context.close();
+        micProcessor = null;
+      }
+      if (micStream) {
+        micStream.getTracks().forEach((t) => t.stop());
+        micStream = null;
+      }
+    }
+
+    // ─── Util ────────────────────────────────────────────────────────────────
+    function esc(text) {
+      const d = document.createElement("div");
+      d.textContent = text;
+      return d.innerHTML;
+    }
+
+    // ─── Pull to Refresh ───────────────────────────────────────────────────
+    {
+      const dashboard = document.getElementById("dashboard");
+      const indicator = document.getElementById("refreshIndicator");
+      let pullStartY = 0;
+      let pulling = false;
+
+      dashboard.addEventListener("touchstart", (e) => {
+        if (dashboard.scrollTop === 0) {
+          pullStartY = e.touches[0].clientY;
+          pulling = true;
+        }
+      }, { passive: true });
+
+      dashboard.addEventListener("touchmove", (e) => {
+        if (!pulling) return;
+        const dy = e.touches[0].clientY - pullStartY;
+        if (dy > 60) {
+          indicator.style.display = "block";
+          indicator.textContent = "Release to refresh...";
+        } else if (dy > 10) {
+          indicator.style.display = "block";
+          indicator.textContent = "Pull to refresh...";
+        }
+      }, { passive: true });
+
+      dashboard.addEventListener("touchend", () => {
+        if (indicator.style.display === "block" && indicator.textContent.includes("Release")) {
+          indicator.textContent = "Refreshing...";
+          loadDashboard().then(() => {
+            indicator.style.display = "none";
+          });
+        } else {
+          indicator.style.display = "none";
+        }
+        pulling = false;
+      });
+    }
+
+    // ─── Service Worker Registration ─────────────────────────────────────────
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  </script>
+</body>
+</html>
