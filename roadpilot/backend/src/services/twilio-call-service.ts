@@ -88,6 +88,8 @@ export class TwilioCallSession {
   private maxSilenceTimer: ReturnType<typeof setTimeout> | null = null;
   private abortController: AbortController | null = null;  // Abort streaming Claude + TTS
   private bargeInAudioLevel: number[] = [];                 // Track audio energy during speech for barge-in detection
+  private sttSpeechChunksWithoutResponse = 0;               // Watchdog: count speech chunks with no Pulse response
+  private static readonly STT_WATCHDOG_THRESHOLD = 30;      // Force reconnect after 30 speech chunks (~5s) with no response
   private negotiationEndSignal: { agreed: boolean; ratePerMile?: number } | null = null;  // AI-determined result
   private onCallComplete: ((result: NegotiationResult) => void) | null = null;
 
@@ -316,6 +318,7 @@ export class TwilioCallSession {
     this.hasSpeechActivity = false;
     this.sttChunkBuffer = [];
     this.sttChunkBufferSize = 0;
+    this.sttSpeechChunksWithoutResponse = 0;
 
     this.sttPipeline = new PulseSTTPipeline(apiKey, {
       onInterim: (text) => {
@@ -419,7 +422,19 @@ export class TwilioCallSession {
         if (endSignal) {
           this.negotiationEndSignal = endSignal;
           setTimeout(() => this.endCall("negotiation_complete"), 3000);
+          return;
         }
+      }
+
+      // Resume listening after prompting (same as handleBrokerSpeech does)
+      if (this.state === "negotiating") {
+        if (this.sttPipeline) {
+          this.sttPipeline.resetUtterance();
+        }
+        if (!this.sttPipeline || !this.sttPipeline.isConnected()) {
+          this.startSTT();
+        }
+        this.startMaxSilenceTimer();
       }
     }, 15000);
   }
@@ -448,6 +463,17 @@ export class TwilioCallSession {
       }
       const rms = Math.sqrt(sumSquares / numSamples);
 
+      // Keep feeding audio to STT even during speaking — this prevents
+      // the Pulse connection from timing out due to inactivity.
+      this.sttChunkBuffer.push(pcm16k);
+      this.sttChunkBufferSize += pcm16k.length;
+      if (this.sttChunkBufferSize >= TwilioCallSession.STT_CHUNK_TARGET && this.sttPipeline) {
+        const combined = Buffer.concat(this.sttChunkBuffer);
+        this.sttChunkBuffer = [];
+        this.sttChunkBufferSize = 0;
+        this.sttPipeline.sendAudio(combined);
+      }
+
       // Track recent levels to detect sustained speech (not just a blip)
       this.bargeInAudioLevel.push(rms);
       if (this.bargeInAudioLevel.length > 8) this.bargeInAudioLevel.shift();
@@ -459,12 +485,6 @@ export class TwilioCallSession {
         console.log(`[TwilioCall] Broker barge-in detected (RMS: ${Math.round(rms)}), aborting speech`);
         this.abortCurrentSpeech();
         this.bargeInAudioLevel = [];
-        // Buffer this audio for STT — it will be flushed when STT connects
-        this.audioBuffer.push(pcm16k);
-        // Start STT to capture what they're saying
-        if (!this.sttPipeline && !this.sttConnecting) {
-          this.startSTT();
-        }
       }
       return;
     }
@@ -483,6 +503,22 @@ export class TwilioCallSession {
       this.sttChunkBuffer = [];
       this.sttChunkBufferSize = 0;
       this.sttPipeline.sendAudio(combined);
+
+      // Watchdog: detect unresponsive STT (Pulse connected but not transcribing)
+      const rms = this.computeRMS(combined);
+      if (rms > 0.05 && !this.sttPipeline.hadResponse()) {
+        this.sttSpeechChunksWithoutResponse++;
+        if (this.sttSpeechChunksWithoutResponse >= TwilioCallSession.STT_WATCHDOG_THRESHOLD) {
+          console.warn(`[TwilioCall] STT watchdog: ${this.sttSpeechChunksWithoutResponse} speech chunks with no Pulse response — forcing reconnect`);
+          this.sttPipeline.endUtterance().catch(() => {});
+          this.sttPipeline = null;
+          this.sttSpeechChunksWithoutResponse = 0;
+          this.audioBuffer.push(pcm16k);
+          this.startSTT();
+        }
+      } else if (this.sttPipeline?.hadResponse()) {
+        this.sttSpeechChunksWithoutResponse = 0;
+      }
     }
   }
 
@@ -496,12 +532,28 @@ export class TwilioCallSession {
       this.abortController = null;
     }
     this.speaking = false;
+    // Clear any pending silence timer (may contain echo-triggered state)
+    if (this.silenceTimer) {
+      clearTimeout(this.silenceTimer);
+      this.silenceTimer = null;
+    }
+    // Reset STT utterance state to discard accumulated text (including echo during speech)
+    this.sttPipeline?.resetUtterance();
+    // Keep STT connection alive — audio continues flowing to it.
+    // Just reset speech tracking state.
+    this.pendingSpeech = "";
+    this.hasSpeechActivity = false;
+    this.sttSpeechChunksWithoutResponse = 0;
     // Send clear message to Twilio to stop any queued audio
     if (this.twilioWs && this.twilioWs.readyState === WebSocket.OPEN && this.streamSid) {
       this.twilioWs.send(JSON.stringify({
         event: "clear",
         streamSid: this.streamSid,
       }));
+    }
+    // Restart max silence timer in case broker doesn't respond after barge-in
+    if (this.state === "negotiating") {
+      this.startMaxSilenceTimer();
     }
   }
 
@@ -525,18 +577,17 @@ export class TwilioCallSession {
       this.transcript.push(`[Broker] ${text}`);
       this.conversationHistory.push({ role: "user", content: text });
 
-      // Flush remaining buffered audio to STT before disconnecting
+      // Flush remaining buffered audio to STT
       if (this.sttPipeline && this.sttChunkBufferSize > 0) {
         const remaining = Buffer.concat(this.sttChunkBuffer);
         this.sttChunkBuffer = [];
         this.sttChunkBufferSize = 0;
         this.sttPipeline.sendAudio(remaining);
       }
-      // Stop STT while we generate response
-      if (this.sttPipeline) {
-        this.sttPipeline.disconnect();
-        this.sttPipeline = null;
-      }
+      // Keep STT alive — disconnecting and reconnecting Pulse between turns
+      // causes the new connection to silently drop audio. Instead, just
+      // reset pending speech and let audio continue flowing during AI response.
+      // (Audio won't reach STT during speaking anyway — it goes to barge-in detection.)
 
       // Stream Claude's response and speak chunks as they arrive
       const rawResponse = await this.streamNegotiationResponse();
@@ -559,9 +610,24 @@ export class TwilioCallSession {
         }
       }
 
-      // Resume listening
+      // Resume listening — STT stays alive, just reset state and ensure connection
       if (this.state === "negotiating") {
-        this.startSTT();
+        // Clear any stale silence timer from echo during AI speech
+        if (this.silenceTimer) {
+          clearTimeout(this.silenceTimer);
+          this.silenceTimer = null;
+        }
+        this.pendingSpeech = "";
+        this.hasSpeechActivity = false;
+        this.sttSpeechChunksWithoutResponse = 0;
+        // Reset STT utterance state — clears accumulatedFinalText from the previous
+        // exchange so new broker speech doesn't include old text in interim callbacks
+        if (this.sttPipeline) {
+          this.sttPipeline.resetUtterance();
+        }
+        if (!this.sttPipeline || !this.sttPipeline.isConnected()) {
+          this.startSTT();
+        }
         this.startMaxSilenceTimer();
       }
     } finally {
@@ -838,6 +904,18 @@ Examples:
     } catch (err) {
       console.error(`[TwilioCall] TTS chunk error:`, err);
     }
+  }
+
+  /** Compute RMS of PCM 16-bit LE buffer, normalized to 0-1 range. */
+  private computeRMS(pcmBuffer: Buffer): number {
+    const numSamples = Math.floor(pcmBuffer.length / 2);
+    if (numSamples === 0) return 0;
+    let sum = 0;
+    for (let i = 0; i < numSamples; i++) {
+      const sample = pcmBuffer.readInt16LE(i * 2) / 32768;
+      sum += sample * sample;
+    }
+    return Math.sqrt(sum / numSamples);
   }
 
   private chunkText(text: string, maxLen: number): string[] {

@@ -1325,6 +1325,10 @@
     const VAD_SILENCE_DURATION = 1200;
     const MIN_SPEECH_DURATION = 400;
     const CONFIRM_FRAMES = 3;        // ~768ms — filters transient noise bursts
+    // Lookback buffer: store recent audio frames so confirmation frames aren't lost.
+    // When VAD confirms speech, flush these buffered frames first — captures the start of the utterance.
+    const LOOKBACK_FRAMES = 5;       // Keep last 5 frames (~1.3s) — covers CONFIRM_FRAMES + margin
+    let lookbackBuffer = [];
 
     function getSpeechThreshold() {
       const adaptive = noiseFloor * NOISE_MULTIPLIER;
@@ -1357,6 +1361,7 @@
         noiseFloor = 0;
         initialNoiseFloor = 0;
         noiseCalibrationFrames = 0;
+        lookbackBuffer = [];
 
         const processor = micCtx.createScriptProcessor(4096, 1, 1);
         processor.onaudioprocess = (e) => {
@@ -1435,6 +1440,9 @@
             if (ttsEndTime && (now - ttsEndTime) < VAD_HOLDOFF_MS) {
               return;
             }
+            // Store frames in lookback buffer so confirmation frames aren't lost
+            lookbackBuffer.push(new Float32Array(float32));
+            if (lookbackBuffer.length > LOOKBACK_FRAMES) lookbackBuffer.shift();
             if (rms > threshold) {
               consecutiveSpeechFrames++;
               // After TTS, echo cancellation creates short bursts of high RMS (2-3 frames)
@@ -1449,7 +1457,11 @@
                 consecutiveSpeechFrames = 0;
                 console.log("[VAD] Speech confirmed (RMS:", rms.toFixed(4), "threshold:", threshold.toFixed(4), ")");
                 ws.send(JSON.stringify({ type: "speech_start" }));
-                sendPCM(float32);
+                // Flush lookback buffer — sends the confirmation frames that contain speech onset
+                for (const buffered of lookbackBuffer) {
+                  sendPCM(buffered);
+                }
+                lookbackBuffer = [];
               }
             } else {
               consecutiveSpeechFrames = 0;
