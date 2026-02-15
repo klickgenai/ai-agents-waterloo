@@ -303,11 +303,19 @@ export class TwilioCallSession {
    * handleBrokerSpeech after a silence gap following speech.
    */
   private async startSTT(): Promise<void> {
+    // Guard: don't start if already connecting or connected
+    if (this.sttConnecting || (this.sttPipeline && this.sttPipeline.isConnected())) {
+      console.log(`[TwilioCall] STT already ${this.sttConnecting ? "connecting" : "connected"}, skipping startSTT`);
+      return;
+    }
+
     const apiKey = process.env.SMALLEST_API_KEY!;
     this.audioBuffer = [];
     this.sttConnecting = true;
     this.pendingSpeech = "";
     this.hasSpeechActivity = false;
+    this.sttChunkBuffer = [];
+    this.sttChunkBufferSize = 0;
 
     this.sttPipeline = new PulseSTTPipeline(apiKey, {
       onInterim: (text) => {
@@ -334,11 +342,18 @@ export class TwilioCallSession {
       this.sttConnecting = false;
       console.log(`[TwilioCall] STT connected for broker audio`);
 
-      // Flush buffered audio
-      for (const buf of this.audioBuffer) {
-        this.sttPipeline.sendAudio(buf);
+      // Flush buffered audio — accumulate into proper chunk sizes
+      if (this.audioBuffer.length > 0) {
+        const combined = Buffer.concat(this.audioBuffer);
+        this.audioBuffer = [];
+        // Send in Pulse-sized chunks
+        for (let offset = 0; offset < combined.length; offset += TwilioCallSession.STT_CHUNK_TARGET) {
+          const chunk = combined.subarray(offset, Math.min(offset + TwilioCallSession.STT_CHUNK_TARGET, combined.length));
+          if (chunk.length >= TwilioCallSession.STT_CHUNK_TARGET / 2) { // Send if at least half a chunk
+            this.sttPipeline.sendAudio(Buffer.from(chunk));
+          }
+        }
       }
-      this.audioBuffer = [];
     } catch (err) {
       console.error(`[TwilioCall] STT connect failed:`, err);
       this.sttConnecting = false;
@@ -374,7 +389,7 @@ export class TwilioCallSession {
 
       console.log(`[TwilioCall] Silence detected, processing broker speech: "${text}"`);
       await this.handleBrokerSpeech(text);
-    }, 1200);
+    }, 1800); // 1.8s silence gap — phone calls have higher latency than browser mic
   }
 
   /**
@@ -413,6 +428,12 @@ export class TwilioCallSession {
    * Handle incoming mulaw audio from Twilio and forward to STT.
    * During AI speech, detect broker barge-in by monitoring audio energy.
    */
+  // Buffer for accumulating small Twilio audio chunks into Pulse-sized chunks.
+  // Twilio sends ~20ms (640 bytes PCM 16kHz) per message; Pulse needs ~160ms (5120 bytes).
+  private sttChunkBuffer: Buffer[] = [];
+  private sttChunkBufferSize = 0;
+  private static readonly STT_CHUNK_TARGET = 5120; // 160ms at 16kHz 16-bit
+
   private async handleIncomingAudio(mulawBase64: string): Promise<void> {
     const pcm16k = mulawToSTT(mulawBase64);
 
@@ -438,7 +459,7 @@ export class TwilioCallSession {
         console.log(`[TwilioCall] Broker barge-in detected (RMS: ${Math.round(rms)}), aborting speech`);
         this.abortCurrentSpeech();
         this.bargeInAudioLevel = [];
-        // Buffer this audio for STT since broker is speaking
+        // Buffer this audio for STT — it will be flushed when STT connects
         this.audioBuffer.push(pcm16k);
         // Start STT to capture what they're saying
         if (!this.sttPipeline && !this.sttConnecting) {
@@ -453,8 +474,15 @@ export class TwilioCallSession {
       return;
     }
 
-    if (this.sttPipeline) {
-      this.sttPipeline.sendAudio(pcm16k);
+    // Accumulate small Twilio chunks into Pulse-sized chunks (~160ms)
+    this.sttChunkBuffer.push(pcm16k);
+    this.sttChunkBufferSize += pcm16k.length;
+
+    if (this.sttChunkBufferSize >= TwilioCallSession.STT_CHUNK_TARGET && this.sttPipeline) {
+      const combined = Buffer.concat(this.sttChunkBuffer);
+      this.sttChunkBuffer = [];
+      this.sttChunkBufferSize = 0;
+      this.sttPipeline.sendAudio(combined);
     }
   }
 
@@ -497,6 +525,13 @@ export class TwilioCallSession {
       this.transcript.push(`[Broker] ${text}`);
       this.conversationHistory.push({ role: "user", content: text });
 
+      // Flush remaining buffered audio to STT before disconnecting
+      if (this.sttPipeline && this.sttChunkBufferSize > 0) {
+        const remaining = Buffer.concat(this.sttChunkBuffer);
+        this.sttChunkBuffer = [];
+        this.sttChunkBufferSize = 0;
+        this.sttPipeline.sendAudio(remaining);
+      }
       // Stop STT while we generate response
       if (this.sttPipeline) {
         this.sttPipeline.disconnect();
@@ -851,6 +886,9 @@ Examples:
     if (this.silenceTimer) clearTimeout(this.silenceTimer);
     if (this.maxSilenceTimer) clearTimeout(this.maxSilenceTimer);
     this.abortCurrentSpeech();
+    // Flush any remaining audio chunks before disconnecting STT
+    this.sttChunkBuffer = [];
+    this.sttChunkBufferSize = 0;
     if (this.sttPipeline) {
       this.sttPipeline.disconnect();
       this.sttPipeline = null;
@@ -959,7 +997,9 @@ Respond with JSON:
       const text = response.content[0];
       if (text.type !== "text") return null;
 
-      const parsed = JSON.parse(text.text);
+      // Strip markdown code fences if present (Claude sometimes wraps JSON)
+      const jsonStr = text.text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+      const parsed = JSON.parse(jsonStr);
       return {
         agreed: parsed.agreed === true,
         negotiatedRatePerMile: parsed.ratePerMile || undefined,

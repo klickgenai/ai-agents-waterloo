@@ -9,6 +9,8 @@ export interface TTSCallbacks {
 // Sentence boundary regex: split on . ! ? followed by space or end
 const SENTENCE_BOUNDARY = /(?<=[.!?])\s+/;
 const MIN_SENTENCE_LENGTH = 12;
+// Merge short sentences into one TTS request to avoid inter-sentence gaps
+const MERGE_TARGET_LENGTH = 80;
 
 // Batch N PCM chunks from Waves into one WAV before sending to browser.
 // Each Waves chunk = 7680 bytes = ~160ms at 24kHz 16-bit mono.
@@ -89,15 +91,39 @@ export class TTSSentencePipeline {
     const parts = this.textBuffer.split(SENTENCE_BOUNDARY);
 
     if (parts.length > 1) {
+      // Collect raw sentences first
+      const rawSentences: string[] = [];
       for (let i = 0; i < parts.length - 1; i++) {
         const sentence = parts[i].trim();
         if (sentence.length >= MIN_SENTENCE_LENGTH) {
-          this.sentenceQueue.push(sentence);
+          rawSentences.push(sentence);
         } else if (sentence) {
+          // Too short on its own — prepend to next part
           parts[i + 1] = sentence + " " + parts[i + 1];
         }
       }
       this.textBuffer = parts[parts.length - 1];
+
+      // Merge adjacent short sentences to reduce TTS request count (and gaps)
+      let merged = "";
+      for (const s of rawSentences) {
+        if (!merged) {
+          merged = s;
+        } else if (merged.length + 1 + s.length <= MERGE_TARGET_LENGTH) {
+          merged += " " + s;
+        } else {
+          this.sentenceQueue.push(merged);
+          merged = s;
+        }
+      }
+      if (merged) {
+        // If merged chunk is still short and more text is coming, hold it back
+        if (merged.length < MERGE_TARGET_LENGTH && this.textBuffer.length > 0) {
+          this.textBuffer = merged + " " + this.textBuffer;
+        } else {
+          this.sentenceQueue.push(merged);
+        }
+      }
     }
 
     if (this.sentenceQueue.length > 0 && !this.processing) {
@@ -163,9 +189,10 @@ export class TTSSentencePipeline {
     await this.ensureConnected();
 
     for (const chunk of chunks) {
-      if (this.aborted) return;
+      if (this.aborted || !this.ttsWs) return;
 
       await new Promise<void>((resolve, reject) => {
+        if (!this.ttsWs) { resolve(); return; }
         const pcmBatch: Buffer[] = [];
         let isFirstBatch = true;
         const batchTarget = () => isFirstBatch ? FIRST_BATCH_SIZE : BATCH_SIZE;

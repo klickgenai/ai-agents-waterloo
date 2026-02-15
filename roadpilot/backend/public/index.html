@@ -12,6 +12,12 @@
 </head>
 <body>
 
+  <!-- ─── Toast Notifications ──────────────────────────────────────────────── -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ─── Drawer Backdrop ──────────────────────────────────────────────────── -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
   <!-- ─── Sidebar (Desktop 1024px+) ──────────────────────────────────────── -->
   <aside class="sidebar">
     <div class="sidebar-brand">
@@ -29,19 +35,19 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a class="sidebar-nav-item active" href="#">
+      <a class="sidebar-nav-item active" href="#" onclick="closeDrawer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
         Dashboard
       </a>
-      <a class="sidebar-nav-item" href="#">
+      <a class="sidebar-nav-item" href="#" onclick="closeDrawer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>
         Trips
       </a>
-      <a class="sidebar-nav-item" href="#">
+      <a class="sidebar-nav-item" href="#" onclick="closeDrawer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         Actions
       </a>
-      <a class="sidebar-nav-item" href="#">
+      <a class="sidebar-nav-item" href="#" onclick="closeDrawer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         Calls
       </a>
@@ -65,6 +71,9 @@
     <!-- ─── Mobile Header ──────────────────────────────────────────────────── -->
     <div class="header">
       <div class="header-brand">
+        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleDrawer()" aria-label="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <div class="header-logo">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/>
@@ -76,6 +85,7 @@
       </div>
       <div class="header-actions">
         <div class="status-dot" id="statusDot" title="Server status"></div>
+        <span class="status-label" id="statusLabel">Online</span>
         <div class="header-avatar">JD</div>
       </div>
     </div>
@@ -168,9 +178,23 @@
         </div>
         <div class="trips-grid" id="tripsList">
           <div class="empty-state" id="noTrips">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H21a2 2 0 0 1 2 2v2"/><circle cx="7" cy="18" r="2"/><path d="M15 18h2"/><circle cx="21" cy="18" r="2"/><path d="M13 13v-3h9v8"/></svg>
+            <div class="empty-state-illustration">
+              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="50" width="70" height="2" rx="1" fill="rgba(148,163,184,0.15)"/>
+                <path d="M15 50V35a2 2 0 0 1 2-2h20a2 2 0 0 1 1.6.8L42 38h10a2 2 0 0 1 2 2v10" stroke="rgba(148,163,184,0.4)" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="50" r="4" stroke="rgba(148,163,184,0.4)" stroke-width="2"/>
+                <circle cx="22" cy="50" r="1.5" fill="rgba(148,163,184,0.3)"/>
+                <circle cx="47" cy="50" r="4" stroke="rgba(148,163,184,0.4)" stroke-width="2"/>
+                <circle cx="47" cy="50" r="1.5" fill="rgba(148,163,184,0.3)"/>
+                <path d="M54 44v-4h8v10" stroke="rgba(148,163,184,0.3)" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
             <div class="empty-state-title">No trips yet</div>
-            <div class="empty-state-sub">Ask Tasha to find loads</div>
+            <div class="empty-state-sub">Tell Tasha your origin and destination to find loads</div>
+            <button class="empty-state-cta" onclick="openVoice()">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              Ask Tasha to find loads
+            </button>
           </div>
         </div>
       </section>
@@ -183,9 +207,16 @@
         </div>
         <div class="action-list" id="actionList">
           <div class="empty-state" id="noActions">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <div class="empty-state-title">No pending actions</div>
-            <div class="empty-state-sub">Talk to Tasha to get started</div>
+            <div class="empty-state-illustration">
+              <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="22" y="15" width="36" height="50" rx="3" stroke="rgba(148,163,184,0.4)" stroke-width="2"/>
+                <path d="M30 20h20M30 28h16M30 36h20M30 44h12" stroke="rgba(148,163,184,0.2)" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="52" cy="52" r="12" fill="rgba(16,185,129,0.15)" stroke="rgba(16,185,129,0.4)" stroke-width="2"/>
+                <path d="M47 52l3 3 6-6" stroke="rgba(16,185,129,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="empty-state-title">All caught up</div>
+            <div class="empty-state-sub">Action items from voice sessions appear here</div>
           </div>
         </div>
       </section>
@@ -235,6 +266,7 @@
     </div>
 
     <div class="voice-center">
+      <canvas class="particle-canvas" id="particleCanvas" width="300" height="250"></canvas>
       <div class="voice-orb listening" id="voiceOrb">
         <div class="voice-orb-glow"></div>
         <div class="voice-orb-ring-3"></div>
@@ -246,8 +278,7 @@
           </div>
         </div>
       </div>
-      <canvas id="micWaveform" width="280" height="50" style="margin-top:10px;border-radius:8px;opacity:0.7;"></canvas>
-      <div id="vadDebug" style="font-family:monospace;font-size:10px;color:#475569;margin-top:2px;text-align:center;"></div>
+      <canvas id="micWaveform" width="320" height="60" style="margin-top:10px;border-radius:8px;opacity:0.7;"></canvas>
       <div class="voice-state-text" id="voiceStateText">Connecting<span class="dots"></span></div>
       <div class="voice-broker-status" id="voiceBrokerStatus">
         <span class="broker-dot"></span>
@@ -285,6 +316,14 @@
       checkCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
     };
 
+    // ─── Toast Icon SVGs ──────────────────────────────────────────────────
+    const TOAST_ICONS = {
+      success: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      error: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      warning: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+      info: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    };
+
     // ─── State ───────────────────────────────────────────────────────────────
     const API = window.location.origin;
     const DRIVER_ID = "00000000-0000-0000-0000-000000000001";
@@ -293,6 +332,7 @@
     let audioContext = null;
     let audioQueue = [];
     let isPlayingAudio = false;
+    let isInterrupting = false;  // True after interrupt, cleared on next speaking state
     let playbackStartTime = 0;
     let interruptFrameCount = 0;
     let currentAudioSource = null;
@@ -302,6 +342,191 @@
     let micStream = null;
     let micProcessor = null;
     let currentLocation = null; // { lat, lng }
+    let lastHealthStatus = null;
+    let particleAnimId = null;
+    let particles = [];
+
+    // ─── Toast Notification System ──────────────────────────────────────────
+    function showToast(type, title, message, duration) {
+      duration = duration || 4000;
+      const container = document.getElementById("toastContainer");
+      const existing = container.querySelectorAll(".toast");
+      if (existing.length >= 4) {
+        dismissToast(existing[0]);
+      }
+
+      const toast = document.createElement("div");
+      toast.className = "toast toast-" + type;
+      toast.innerHTML =
+        '<div class="toast-icon">' + (TOAST_ICONS[type] || TOAST_ICONS.info) + '</div>' +
+        '<div class="toast-body">' +
+          '<div class="toast-title">' + esc(title) + '</div>' +
+          (message ? '<div class="toast-message">' + esc(message) + '</div>' : '') +
+        '</div>' +
+        '<button class="toast-close" onclick="dismissToast(this.parentElement)">&times;</button>' +
+        '<div class="toast-progress"><div class="toast-progress-bar"></div></div>';
+
+      container.appendChild(toast);
+
+      // Trigger reflow then add visible class
+      toast.offsetHeight;
+      toast.classList.add("toast-visible");
+
+      // Animate progress bar
+      const bar = toast.querySelector(".toast-progress-bar");
+      bar.style.transition = "width " + duration + "ms linear";
+      requestAnimationFrame(function() { bar.style.width = "0%"; });
+
+      // Auto dismiss
+      toast._timeout = setTimeout(function() { dismissToast(toast); }, duration);
+    }
+
+    function dismissToast(toast) {
+      if (!toast || !toast.parentElement) return;
+      clearTimeout(toast._timeout);
+      toast.classList.remove("toast-visible");
+      toast.classList.add("toast-hiding");
+      setTimeout(function() { if (toast.parentElement) toast.parentElement.removeChild(toast); }, 300);
+    }
+
+    // ─── Skeleton Loading ──────────────────────────────────────────────────
+    function showSkeletons() {
+      // Stat cards: replace values with skeletons
+      ["hosValue", "revenueValue", "fuelValue", "parkingValue"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = '<div class="skeleton skeleton-value"></div>';
+      });
+      ["hosSub", "revenueSub", "fuelSub", "parkingSub"].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.innerHTML = '<div class="skeleton skeleton-text"></div>';
+      });
+
+      // Trips: add skeleton placeholders
+      var tripsList = document.getElementById("tripsList");
+      var noTrips = document.getElementById("noTrips");
+      if (noTrips) noTrips.style.display = "none";
+      for (var i = 0; i < 2; i++) {
+        var skel = document.createElement("div");
+        skel.className = "skeleton-trip-card skeleton-placeholder";
+        skel.innerHTML = '<div class="skeleton" style="width:60px;height:16px;margin-bottom:10px;border-radius:8px"></div>' +
+          '<div class="skeleton" style="width:100%;height:14px;margin-bottom:8px;border-radius:6px"></div>' +
+          '<div class="skeleton" style="width:70%;height:12px;border-radius:6px"></div>';
+        tripsList.appendChild(skel);
+      }
+
+      // Actions: add skeleton placeholders
+      var actionList = document.getElementById("actionList");
+      var noActions = document.getElementById("noActions");
+      if (noActions) noActions.style.display = "none";
+      for (var j = 0; j < 2; j++) {
+        var askel = document.createElement("div");
+        askel.className = "skeleton-action skeleton-placeholder";
+        askel.innerHTML = '<div class="skeleton" style="width:32px;height:32px;border-radius:8px"></div>' +
+          '<div style="flex:1"><div class="skeleton" style="width:80%;height:14px;margin-bottom:6px;border-radius:6px"></div>' +
+          '<div class="skeleton" style="width:50%;height:12px;border-radius:6px"></div></div>';
+        actionList.appendChild(askel);
+      }
+    }
+
+    function hideSkeletons() {
+      document.querySelectorAll(".skeleton-placeholder").forEach(function(el) { el.remove(); });
+    }
+
+    // ─── Count-up Animation ──────────────────────────────────────────────────
+    function animateValue(el, endValue, prefix, suffix, duration) {
+      prefix = prefix || "";
+      suffix = suffix || "";
+      duration = duration || 800;
+      var startTime = null;
+      var startValue = 0;
+
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        var progress = Math.min((timestamp - startTime) / duration, 1);
+        // Ease-out cubic
+        var eased = 1 - Math.pow(1 - progress, 3);
+        var current = Math.round(startValue + (endValue - startValue) * eased);
+        el.textContent = prefix + current.toLocaleString() + suffix;
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ─── Mobile Drawer ──────────────────────────────────────────────────────
+    function toggleDrawer() {
+      document.body.classList.toggle("drawer-open");
+      if (document.body.classList.contains("drawer-open")) {
+        document.body.style.overflow = "hidden";
+      } else {
+        document.body.style.overflow = "";
+      }
+    }
+
+    function closeDrawer() {
+      document.body.classList.remove("drawer-open");
+      document.body.style.overflow = "";
+    }
+
+    // Backdrop click closes drawer
+    document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
+
+    // Escape key closes drawer
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Escape" && document.body.classList.contains("drawer-open")) {
+        closeDrawer();
+      }
+    });
+
+    // ─── Floating Particles ──────────────────────────────────────────────────
+    function startParticles() {
+      var canvas = document.getElementById("particleCanvas");
+      if (!canvas) return;
+      var ctx = canvas.getContext("2d");
+      particles = [];
+      for (var i = 0; i < 30; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r: Math.random() * 2 + 0.5,
+          dx: (Math.random() - 0.5) * 0.4,
+          dy: (Math.random() - 0.5) * 0.4,
+          alpha: Math.random() * 0.3 + 0.1,
+        });
+      }
+
+      function drawParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(function(p) {
+          p.x += p.dx;
+          p.y += p.dy;
+          if (p.x < 0) p.x = canvas.width;
+          if (p.x > canvas.width) p.x = 0;
+          if (p.y < 0) p.y = canvas.height;
+          if (p.y > canvas.height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(148, 163, 184, " + p.alpha + ")";
+          ctx.fill();
+        });
+        particleAnimId = requestAnimationFrame(drawParticles);
+      }
+      drawParticles();
+    }
+
+    function stopParticles() {
+      if (particleAnimId) {
+        cancelAnimationFrame(particleAnimId);
+        particleAnimId = null;
+      }
+      var canvas = document.getElementById("particleCanvas");
+      if (canvas) {
+        var ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      particles = [];
+    }
 
     // ─── GPS Location Tracking ────────────────────────────────────────────────
     function initGPS() {
@@ -352,12 +577,37 @@
         const res = await fetch(`${API}/health`);
         const ok = res.ok;
         document.getElementById("statusDot").className = ok ? "status-dot" : "status-dot offline";
+        const label = document.getElementById("statusLabel");
+        if (label) {
+          label.textContent = ok ? "Online" : "Offline";
+          label.className = ok ? "status-label" : "status-label offline";
+        }
         const sidebarDot = document.getElementById("statusDotSidebar");
         if (sidebarDot) sidebarDot.style.background = ok ? "var(--green)" : "var(--red)";
+
+        // Toast on status change
+        if (lastHealthStatus !== null && lastHealthStatus !== ok) {
+          if (ok) {
+            showToast("success", "Connected", "Server is back online");
+          } else {
+            showToast("error", "Disconnected", "Server connection lost");
+          }
+        }
+        lastHealthStatus = ok;
       } catch {
         document.getElementById("statusDot").className = "status-dot offline";
+        const label = document.getElementById("statusLabel");
+        if (label) {
+          label.textContent = "Offline";
+          label.className = "status-label offline";
+        }
         const sidebarDot = document.getElementById("statusDotSidebar");
         if (sidebarDot) sidebarDot.style.background = "var(--red)";
+
+        if (lastHealthStatus !== null && lastHealthStatus !== false) {
+          showToast("error", "Disconnected", "Server connection lost");
+        }
+        lastHealthStatus = false;
       }
     }
     checkHealth();
@@ -365,6 +615,7 @@
 
     // ─── Dashboard Data ──────────────────────────────────────────────────────
     async function loadDashboard() {
+      showSkeletons();
       try {
         let url = `${API}/api/dashboard/${DRIVER_ID}`;
         if (currentLocation) {
@@ -372,6 +623,8 @@
         }
         const res = await fetch(url);
         const data = await res.json();
+
+        hideSkeletons();
 
         // HOS
         if (data.hos) {
@@ -396,7 +649,8 @@
         // Parking
         if (data.parking?.locations?.length) {
           const count = data.parking.locations.length;
-          document.getElementById("parkingValue").textContent = count;
+          const parkingEl = document.getElementById("parkingValue");
+          animateValue(parkingEl, count, "", "", 600);
           document.getElementById("parkingSub").textContent = "spots nearby";
         }
 
@@ -405,7 +659,8 @@
         const revenue = trips
           .filter(t => t.status === "booked" || t.status === "in_transit" || t.status === "delivered")
           .reduce((sum, t) => sum + (t.rate || 0), 0);
-        document.getElementById("revenueValue").textContent = "$" + revenue.toLocaleString();
+        const revenueEl = document.getElementById("revenueValue");
+        animateValue(revenueEl, revenue, "$", "", 800);
         document.getElementById("revenueSub").textContent = trips.length ? `${trips.filter(t => t.status !== "searching").length} trips` : "Revenue";
 
         // Active trip card — first in_transit trip
@@ -426,7 +681,9 @@
         // Action Items
         renderActionItems(data.actionItems || []);
       } catch (err) {
+        hideSkeletons();
         console.warn("Dashboard load error:", err);
+        showToast("error", "Load Failed", "Could not fetch dashboard data");
       }
     }
     loadDashboard();
@@ -496,7 +753,7 @@
 
       trips.forEach(trip => {
         const card = document.createElement("div");
-        card.className = "trip-card";
+        card.className = `trip-card ${trip.status}`;
         card.id = `trip-${trip.id}`;
         card.innerHTML = `
           <div class="trip-card-header">
@@ -517,10 +774,10 @@
             </div>
           </div>
           <div class="trip-card-meta">
-            ${trip.distance ? `<span class="meta-item"><span class="meta-label">Dist</span> <span class="meta-value">${trip.distance} mi</span></span>` : ''}
-            ${trip.weight ? `<span class="meta-item"><span class="meta-label">Wt</span> <span class="meta-value">${(trip.weight / 1000).toFixed(0)}k lbs</span></span>` : ''}
-            ${trip.equipmentType ? `<span class="meta-item"><span class="meta-label">Equip</span> <span class="meta-value">${esc(trip.equipmentType)}</span></span>` : ''}
-            ${trip.brokerName ? `<span class="meta-item"><span class="meta-label">Broker</span> <span class="meta-value">${esc(trip.brokerName)}</span></span>` : ''}
+            ${trip.distance ? `<div class="meta-item"><span class="meta-label">Distance</span><span class="meta-value">${trip.distance} mi</span></div>` : ''}
+            ${trip.weight ? `<div class="meta-item"><span class="meta-label">Weight</span><span class="meta-value">${(trip.weight / 1000).toFixed(0)}k lbs</span></div>` : ''}
+            ${trip.equipmentType ? `<div class="meta-item"><span class="meta-label">Equipment</span><span class="meta-value">${esc(trip.equipmentType)}</span></div>` : ''}
+            ${trip.brokerName ? `<div class="meta-item"><span class="meta-label">Broker</span><span class="meta-value">${esc(trip.brokerName)}</span></div>` : ''}
           </div>
           <div class="trip-card-rate">
             <span class="rate-total">$${(trip.rate || 0).toLocaleString()}</span>
@@ -539,7 +796,10 @@
       }
       try {
         await fetch(`${API}/api/trips/${id}`, { method: "DELETE" });
-      } catch (e) { /* ignore */ }
+        showToast("success", "Trip Removed", "Trip has been deleted");
+      } catch (e) {
+        showToast("error", "Delete Failed", "Could not remove trip");
+      }
       loadDashboard();
     }
 
@@ -608,18 +868,23 @@
       document.getElementById("voiceTranscript").innerHTML = "";
       document.getElementById("voiceActions").innerHTML = "";
       document.getElementById("voiceBrokerStatus").classList.remove("active");
+      startParticles();
       startVoiceSession();
     }
 
     function closeVoice() {
       voiceActive = false;
-      document.getElementById("voiceOverlay").classList.remove("active");
+      const overlay = document.getElementById("voiceOverlay");
+      overlay.classList.remove("active", "state-listening", "state-thinking", "state-speaking");
+      stopParticles();
       stopVoiceSession();
       stopCallTimer();
       loadDashboard();
     }
 
     // ─── WebSocket Voice Session ─────────────────────────────────────────────
+    let wsReconnectAttempts = 0;
+
     async function startVoiceSession() {
       updateVoiceState("listening", "Connecting...");
 
@@ -634,7 +899,12 @@
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: "start_session", driverId: DRIVER_ID }));
+        var startMsg = { type: "start_session", driverId: DRIVER_ID };
+        if (currentLocation) {
+          startMsg.lat = currentLocation.lat;
+          startMsg.lng = currentLocation.lng;
+        }
+        ws.send(JSON.stringify(startMsg));
       };
 
       ws.onmessage = (event) => {
@@ -644,8 +914,12 @@
 
       ws.onclose = () => {
         if (voiceActive) {
+          wsReconnectAttempts++;
+          const delay = Math.min(2000 * Math.pow(1.5, wsReconnectAttempts - 1), 15000);
+          console.log(`[WS] Reconnect attempt ${wsReconnectAttempts}, delay: ${Math.round(delay)}ms`);
+          showToast("warning", "Voice Disconnected", "Reconnecting...");
           updateVoiceState("listening", "Disconnected. Reconnecting...");
-          setTimeout(startVoiceSession, 2000);
+          setTimeout(startVoiceSession, delay);
         }
       };
 
@@ -664,12 +938,16 @@
       if (currentAudioSource) { try { currentAudioSource.stop(); } catch(e) {} currentAudioSource = null; }
       audioQueue = [];
       isPlayingAudio = false;
+      isInterrupting = false;
+      nextEndTime = 0;
+      pendingDecode = null;
       interruptFrameCount = 0;
     }
 
     function handleWSMessage(msg) {
       switch (msg.type) {
         case "session_started":
+          wsReconnectAttempts = 0; // Reset backoff on successful connect
           startMic();
           startCallTimer();
           updateVoiceState("listening", "Tasha is listening...");
@@ -678,7 +956,7 @@
         case "state_change":
           if (msg.state === "listening") updateVoiceState("listening", "Tasha is listening...");
           else if (msg.state === "thinking") updateVoiceState("thinking", "Thinking...");
-          else if (msg.state === "speaking") updateVoiceState("speaking", "Tasha is talking...");
+          else if (msg.state === "speaking") { isInterrupting = false; updateVoiceState("speaking", "Tasha is talking..."); }
           break;
 
         case "transcript":
@@ -686,11 +964,11 @@
           break;
 
         case "filler_audio":
-          queueAudio(msg.data);
+          if (!isInterrupting) queueAudio(msg.data);
           break;
 
         case "audio_chunk":
-          queueAudio(msg.data);
+          if (!isInterrupting) queueAudio(msg.data);
           break;
 
         case "action_item":
@@ -713,6 +991,11 @@
       orb.className = "voice-orb " + state;
       document.getElementById("voiceStateText").innerHTML =
         text + (state === "listening" || state === "thinking" ? '<span class="dots"></span>' : "");
+
+      // Update overlay state class for background glow
+      const overlay = document.getElementById("voiceOverlay");
+      overlay.classList.remove("state-listening", "state-thinking", "state-speaking");
+      overlay.classList.add("state-" + state);
 
       // Sync avatar speaking ring
       const avatar = document.getElementById("voiceAiAvatar");
@@ -819,7 +1102,13 @@
     }
 
     // ─── Audio Playback Queue ────────────────────────────────────────────────
+    const MAX_AUDIO_QUEUE = 50; // Cap queue to prevent unbounded memory growth
+
     function queueAudio(base64Data) {
+      if (audioQueue.length >= MAX_AUDIO_QUEUE) {
+        console.warn("[Audio] Queue full, dropping oldest chunk");
+        audioQueue.shift();
+      }
       audioQueue.push(base64Data);
       if (!isPlayingAudio) {
         playbackStartTime = Date.now();
@@ -828,10 +1117,22 @@
       }
     }
 
+    let nextEndTime = 0;  // AudioContext time when current chunk ends — used to schedule gapless playback
+    let pendingDecode = null;  // Pre-decoded next buffer for gapless transition
+
     async function playNextAudio() {
       if (audioQueue.length === 0) {
         isPlayingAudio = false;
         currentAudioSource = null;
+        nextEndTime = 0;
+        pendingDecode = null;
+        // Recalibrate noise floor after TTS playback ends — echo cancellation
+        // may have shifted audio levels, so the VAD needs a fresh baseline.
+        // Keep existing noise floor as starting point (don't reset to 0 — that
+        // would make the threshold = MIN_SPEECH_THRESHOLD and trigger false positives).
+        noiseCalibrationFrames = NOISE_CALIBRATION_COUNT; // Skip calibration phase, keep adapting
+        consecutiveSpeechFrames = 0;
+        console.log("[VAD] Recalibrating noise floor after TTS playback (baseline:", noiseFloor.toFixed(5), ")");
         return;
       }
 
@@ -843,19 +1144,45 @@
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-        const audioBuffer = await audioContext.decodeAudioData(bytes.buffer);
+        // Use pre-decoded buffer if available, otherwise decode now
+        let decodedBuffer;
+        if (pendingDecode) {
+          decodedBuffer = pendingDecode;
+          pendingDecode = null;
+        } else {
+          decodedBuffer = await audioContext.decodeAudioData(bytes.buffer.slice(0));
+        }
+
         const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
+        source.buffer = decodedBuffer;
         source.connect(audioContext.destination);
         currentAudioSource = source;
+
+        // Schedule precisely at the end of previous chunk (gapless) or now
+        const startAt = (nextEndTime > audioContext.currentTime) ? nextEndTime : audioContext.currentTime;
+        nextEndTime = startAt + decodedBuffer.duration;
+        source.start(startAt);
+
+        // Pre-decode the next chunk while this one plays
+        if (audioQueue.length > 0) {
+          const nextBase64 = audioQueue[0];
+          try {
+            const nb = atob(nextBase64);
+            const nBytes = new Uint8Array(nb.length);
+            for (let i = 0; i < nb.length; i++) nBytes[i] = nb.charCodeAt(i);
+            pendingDecode = await audioContext.decodeAudioData(nBytes.buffer.slice(0));
+          } catch { pendingDecode = null; }
+        }
+
         source.onended = () => {
           if (currentAudioSource === source) currentAudioSource = null;
           playNextAudio();
         };
-        source.start(0);
       } catch (err) {
         console.error("Audio playback error:", err);
         currentAudioSource = null;
+        nextEndTime = 0;
+        pendingDecode = null;
         playNextAudio();
       }
     }
@@ -933,14 +1260,18 @@
     let consecutiveSpeechFrames = 0;
 
     let noiseFloor = 0;
+    let initialNoiseFloor = 0;  // Baseline from calibration — used as decay target
     let noiseCalibrationFrames = 0;
     const NOISE_CALIBRATION_COUNT = 6;
-    const NOISE_MULTIPLIER = 2.5;
+    const NOISE_MULTIPLIER = 2.2;
     const MIN_SPEECH_THRESHOLD = 0.003;
-    const MAX_SPEECH_THRESHOLD = 0.05;
+    const MAX_SPEECH_THRESHOLD = 0.04;
+    const MAX_NOISE_FLOOR = 0.015;   // Cap noise floor so threshold can't run away
+    const NOISE_ADAPT_UP = 0.02;     // Slow rise (was 0.05)
+    const NOISE_ADAPT_DOWN = 0.10;   // Faster fall back toward baseline
     const VAD_SILENCE_DURATION = 1200;
     const MIN_SPEECH_DURATION = 400;
-    const CONFIRM_FRAMES = 3;
+    const CONFIRM_FRAMES = 2;        // ~512ms instead of ~768ms
 
     function getSpeechThreshold() {
       const adaptive = noiseFloor * NOISE_MULTIPLIER;
@@ -971,6 +1302,7 @@
         silenceStart = 0;
         speechStartTime = 0;
         noiseFloor = 0;
+        initialNoiseFloor = 0;
         noiseCalibrationFrames = 0;
 
         const processor = micCtx.createScriptProcessor(4096, 1, 1);
@@ -988,23 +1320,27 @@
               noiseFloor = (noiseFloor * noiseCalibrationFrames + rms) / (noiseCalibrationFrames + 1);
               noiseCalibrationFrames++;
               if (noiseCalibrationFrames === NOISE_CALIBRATION_COUNT) {
+                initialNoiseFloor = noiseFloor;
                 console.log("[VAD] Noise floor calibrated:", noiseFloor.toFixed(5),
                   "→ speech threshold:", getSpeechThreshold().toFixed(4));
               }
               return;
             } else {
-              noiseFloor = noiseFloor * 0.95 + rms * 0.05;
+              // Asymmetric adaptation: slow up, fast down — prevents runaway threshold
+              if (rms > noiseFloor) {
+                noiseFloor = noiseFloor * (1 - NOISE_ADAPT_UP) + rms * NOISE_ADAPT_UP;
+              } else {
+                noiseFloor = noiseFloor * (1 - NOISE_ADAPT_DOWN) + rms * NOISE_ADAPT_DOWN;
+              }
+              // Also decay toward initial calibration to prevent long-term drift
+              noiseFloor = noiseFloor * 0.998 + initialNoiseFloor * 0.002;
+              // Hard cap — never let noise floor exceed maximum
+              noiseFloor = Math.min(noiseFloor, MAX_NOISE_FLOOR);
             }
           }
 
           const threshold = getSpeechThreshold();
           const now = Date.now();
-
-          const dbg = document.getElementById("vadDebug");
-          if (dbg) {
-            const bar = "\u2588".repeat(Math.min(30, Math.round(rms * 300)));
-            dbg.textContent = `RMS:${rms.toFixed(4)} THR:${threshold.toFixed(4)} [${bar.padEnd(30)}] ${vadState.toUpperCase()}`;
-          }
 
           if (isPlayingAudio) {
             const elapsed = Date.now() - playbackStartTime;
@@ -1019,6 +1355,9 @@
                 }
                 audioQueue = [];
                 isPlayingAudio = false;
+                isInterrupting = true; // Block late-arriving audio from server
+                nextEndTime = 0;
+                pendingDecode = null;
                 interruptFrameCount = 0;
                 // Tell backend to abort TTS/Claude stream
                 ws.send(JSON.stringify({ type: "interrupt" }));
@@ -1173,6 +1512,13 @@
         pulling = false;
       });
     }
+
+    // ─── Cleanup on page close ─────────────────────────────────────────────
+    window.addEventListener("beforeunload", () => {
+      if (voiceActive) {
+        stopVoiceSession();
+      }
+    });
 
     // ─── Service Worker Registration ─────────────────────────────────────────
     if ("serviceWorker" in navigator) {

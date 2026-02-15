@@ -52,12 +52,12 @@ export class VoiceSession {
   private mastra: Mastra;
   private sttPipeline: PulseSTTPipeline | null = null;
   private ttsPipeline: TTSSentencePipeline | null = null;
-  private ttsWebSocket: TTSWebSocket | null = null;  // Shared TTS WS for the session
+  private ttsWebSocket: TTSWebSocket | null = null;
   private abortController: AbortController | null = null;
   private startedAt: number;
   private preFetchedContext: PreFetchedContext = {};
-  private audioBuffer: Buffer[] = [];         // Buffer audio while Pulse connects
-  private sttConnecting = false;              // True while awaiting Pulse connection
+  private audioBuffer: Buffer[] = [];         // Buffer audio while STT connects
+  private sttConnecting = false;              // True while awaiting STT connection
 
   constructor(
     driverId: string,
@@ -76,7 +76,6 @@ export class VoiceSession {
     const agent = this.mastra.getAgent("roadpilot");
     const tools = (await agent.listTools()) as Record<string, any>;
 
-    // Use real driver location if available
     const loc = demoSession.driverLocation;
     const fuelLocation = loc ? `${loc.lat},${loc.lng}` : "current";
     const parkingLocation = loc ? `${loc.lat},${loc.lng}` : "current";
@@ -101,6 +100,7 @@ export class VoiceSession {
   /** Initialize and set to listening state */
   async startListening(): Promise<void> {
     if (!process.env.SMALLEST_API_KEY) throw new Error("SMALLEST_API_KEY required for voice");
+    const apiKey = process.env.SMALLEST_API_KEY;
 
     // Eagerly create + connect the shared TTS WebSocket for this session
     if (!this.ttsWebSocket) {
@@ -109,7 +109,7 @@ export class VoiceSession {
         onRequestComplete: () => {},
         onError: (err) => console.error("[TTS-WS] Session error:", err.message),
       };
-      this.ttsWebSocket = new TTSWebSocket(process.env.SMALLEST_API_KEY, ttsCallbacks, {
+      this.ttsWebSocket = new TTSWebSocket(apiKey, ttsCallbacks, {
         voiceId: "sophia",
         sampleRate: 24000,
         speed: 1.0,
@@ -119,45 +119,101 @@ export class VoiceSession {
       });
     }
 
+    // Pre-warm the first STT connection so it's ready when user speaks
+    this.preWarmSTT();
+
     this.setState("listening");
   }
 
-  /** Called when client detects speech started — open fresh STT connection */
-  async onSpeechStart(): Promise<void> {
-    const apiKey = process.env.SMALLEST_API_KEY!;
+  /**
+   * Pre-warm a fresh Pulse STT connection in the background.
+   * Called after each utterance completes so the next one is ready instantly.
+   */
+  private preWarmSTT(): void {
+    const apiKey = process.env.SMALLEST_API_KEY;
+    if (!apiKey) return;
 
-    // Start buffering audio immediately (Pulse connection takes time)
-    this.audioBuffer = [];
-    this.sttConnecting = true;
-    this.audioFrameCount = 0;
+    // Don't pre-warm if we already have a connected pipeline
+    if (this.sttPipeline?.isConnected()) return;
+
+    // Clean up any dead pipeline
+    if (this.sttPipeline) {
+      this.sttPipeline.disconnect();
+      this.sttPipeline = null;
+    }
 
     const sttCallbacks: STTCallbacks = {
       onInterim: (text) => {
         this.callbacks.onTranscript("user", text);
       },
-      onFinal: (text) => {
-        this.callbacks.onTranscript("user", text);
-        this.handleUserMessage(text);
-      },
+      onFinal: () => {},
       onError: (err) => {
+        console.error(`[VoiceSession ${this.sessionId}] STT error:`, err.message);
         this.callbacks.onError(err);
       },
     };
 
     this.sttPipeline = new PulseSTTPipeline(apiKey, sttCallbacks);
-    await this.sttPipeline.connect();
+    this.sttPipeline.connect().then(() => {
+      console.log(`[VoiceSession ${this.sessionId}] STT pre-warmed and ready`);
+    }).catch((err) => {
+      console.error(`[VoiceSession ${this.sessionId}] STT pre-warm failed:`, err.message);
+      // Will retry on next speech_start
+      this.sttPipeline = null;
+    });
+  }
+
+  /** Called when client detects speech started */
+  async onSpeechStart(): Promise<void> {
+    this.audioFrameCount = 0;
+    this.audioBuffer = [];
     this.sttConnecting = false;
 
-    // Flush buffered audio that arrived while connecting
-    if (this.audioBuffer.length > 0) {
-      console.log(`[VoiceSession ${this.sessionId}] Flushing ${this.audioBuffer.length} buffered audio frames to Pulse`);
-      for (const buf of this.audioBuffer) {
-        this.sttPipeline.sendAudio(buf);
-      }
-      this.audioBuffer = [];
+    const apiKey = process.env.SMALLEST_API_KEY!;
+
+    // If pre-warmed pipeline is ready, use it directly
+    if (this.sttPipeline?.isConnected()) {
+      this.sttPipeline.resetUtterance();
+      console.log(`[VoiceSession ${this.sessionId}] Speech started — using pre-warmed STT`);
+      return;
     }
 
-    console.log(`[VoiceSession ${this.sessionId}] Speech started — STT connected`);
+    // No pre-warmed connection — need to connect now (buffer audio while waiting)
+    console.log(`[VoiceSession ${this.sessionId}] Speech started — STT not pre-warmed, connecting now...`);
+    this.sttConnecting = true;
+
+    // Clean up any dead pipeline
+    if (this.sttPipeline) {
+      this.sttPipeline.disconnect();
+    }
+
+    const sttCallbacks: STTCallbacks = {
+      onInterim: (text) => this.callbacks.onTranscript("user", text),
+      onFinal: () => {},
+      onError: (err) => this.callbacks.onError(err),
+    };
+
+    this.sttPipeline = new PulseSTTPipeline(apiKey, sttCallbacks);
+    try {
+      await this.sttPipeline.connect();
+      this.sttPipeline.resetUtterance();
+      this.sttConnecting = false;
+
+      // Flush buffered audio
+      if (this.audioBuffer.length > 0) {
+        console.log(`[VoiceSession ${this.sessionId}] Flushing ${this.audioBuffer.length} buffered audio frames`);
+        for (const buf of this.audioBuffer) {
+          this.sttPipeline.sendAudio(buf);
+        }
+        this.audioBuffer = [];
+      }
+    } catch (err) {
+      console.error(`[VoiceSession ${this.sessionId}] STT connect failed during speech:`, (err as Error).message);
+      this.sttConnecting = false;
+      this.audioBuffer = [];
+      this.sttPipeline = null;
+      this.callbacks.onError(err as Error);
+    }
   }
 
   /** Feed raw PCM audio from the browser mic (only during speech) */
@@ -167,7 +223,7 @@ export class VoiceSession {
     if (this.audioFrameCount % 10 === 1) {
       console.log(`[VoiceSession ${this.sessionId}] Audio frame #${this.audioFrameCount}, size=${pcmBuffer.length}bytes, connecting=${this.sttConnecting}, hasPipeline=${!!this.sttPipeline}`);
     }
-    // If Pulse is still connecting, buffer the audio
+    // Buffer audio while STT is connecting
     if (this.sttConnecting) {
       this.audioBuffer.push(Buffer.from(pcmBuffer));
       return;
@@ -177,13 +233,17 @@ export class VoiceSession {
     }
   }
 
-  /** Called when client detects speech ended — close STT, get transcript, process */
+  /** Called when client detects speech ended */
   async onSpeechEnd(): Promise<void> {
     if (!this.sttPipeline) return;
 
     console.log(`[VoiceSession ${this.sessionId}] Speech ended — collecting transcript (${this.audioFrameCount} total frames sent)`);
     const text = await this.sttPipeline.endUtterance();
+    // endUtterance() disconnects the pipeline — it's now dead
     this.sttPipeline = null;
+
+    // Pre-warm the NEXT STT connection immediately (during thinking + TTS time)
+    this.preWarmSTT();
 
     if (text) {
       console.log(`[VoiceSession ${this.sessionId}] Transcript: "${text}"`);
@@ -196,7 +256,6 @@ export class VoiceSession {
 
   /** Handle a complete user utterance */
   async handleUserMessage(text: string): Promise<void> {
-    // Add to history
     this.conversationHistory.push({ role: "user", content: text });
     this.transcript.push({ role: "user", text, timestamp: Date.now() });
 
@@ -206,7 +265,8 @@ export class VoiceSession {
     if (this.abortController) {
       this.abortController.abort();
     }
-    this.abortController = new AbortController();
+    const localAbort = new AbortController();
+    this.abortController = localAbort;
 
     const apiKey = process.env.SMALLEST_API_KEY;
     if (!apiKey) {
@@ -214,21 +274,18 @@ export class VoiceSession {
       return;
     }
 
-    // Build context-enriched messages
     const messages = this.buildMessages();
 
     try {
       const agent = this.mastra.getAgent("roadpilot");
 
-      // Stream response from Claude
       console.log(`[VoiceSession ${this.sessionId}] Starting Claude stream with ${messages.length} messages`);
       const stream = await agent.stream(messages as any, {
         maxSteps: 10,
-        abortSignal: this.abortController.signal,
+        abortSignal: localAbort.signal,
       });
       console.log(`[VoiceSession ${this.sessionId}] Claude stream created, processing chunks...`);
 
-      // Set up TTS pipeline for early start
       let fillerSent = false;
       let fullResponseText = "";
 
@@ -240,8 +297,9 @@ export class VoiceSession {
             this.callbacks.onAudioChunk(audioBuffer, sentenceText);
           },
           onDone: () => {
-            // TTS finished playing all sentences
             this.setState("listening");
+            // Pre-warm STT when TTS finishes (in case the earlier pre-warm expired)
+            this.preWarmSTT();
           },
           onError: (err) => {
             console.error("[TTS] Error:", err.message);
@@ -249,17 +307,15 @@ export class VoiceSession {
           },
         },
         "sophia",
-        this.ttsWebSocket ?? undefined  // Share the session-level TTS WebSocket
+        this.ttsWebSocket ?? undefined
       );
 
-      // Process the stream — Mastra wraps data in `payload`
       for await (const chunk of stream.fullStream) {
-        if (this.abortController.signal.aborted) break;
+        if (localAbort.signal.aborted) break;
         const payload = (chunk as any).payload;
 
         if (chunk.type === "text-delta") {
           const textDelta: string = payload?.text ?? "";
-          // Send smart filler on first text (before TTS kicks in)
           if (!fillerSent) {
             fillerSent = true;
             const filler = fillerCache.getSmartFiller();
@@ -267,14 +323,12 @@ export class VoiceSession {
               this.callbacks.onFillerAudio(filler.audio, filler.text);
             }
           }
-
           fullResponseText += textDelta;
           this.ttsPipeline.feedText(textDelta);
         }
 
         if (chunk.type === "tool-call") {
           const toolName: string = payload?.toolName ?? "";
-          // Send context-aware filler for this specific tool
           if (!fillerSent) {
             fillerSent = true;
             const filler = fillerCache.getSmartFiller(toolName);
@@ -285,7 +339,6 @@ export class VoiceSession {
         }
 
         if (chunk.type === "tool-result") {
-          // Extract action item from tool result
           const actionItem = extractActionItem({
             toolName: payload?.toolName ?? "",
             args: (payload?.args ?? {}) as Record<string, unknown>,
@@ -298,12 +351,10 @@ export class VoiceSession {
         }
       }
 
-      // Finish TTS with remaining buffered text
-      if (this.ttsPipeline && !this.abortController.signal.aborted) {
+      if (this.ttsPipeline && !localAbort.signal.aborted) {
         this.ttsPipeline.finish();
       }
 
-      // Record assistant response
       if (fullResponseText) {
         this.conversationHistory.push({ role: "assistant", content: fullResponseText });
         this.transcript.push({ role: "assistant", text: fullResponseText, timestamp: Date.now() });
@@ -320,10 +371,6 @@ export class VoiceSession {
     }
   }
 
-  /**
-   * Inject a system event as if the user said something.
-   * Used to auto-trigger responses (e.g., after a broker call completes).
-   */
   async injectSystemMessage(message: string): Promise<void> {
     console.log(`[VoiceSession ${this.sessionId}] System event injected: "${message.substring(0, 80)}"`);
     await this.handleUserMessage(message);
@@ -331,13 +378,11 @@ export class VoiceSession {
 
   /** Interrupt current response — user started speaking again */
   interrupt(): void {
-    // Abort Claude stream
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
     }
 
-    // Stop TTS pipeline
     if (this.ttsPipeline) {
       this.ttsPipeline.abort();
       this.ttsPipeline = null;
@@ -348,14 +393,12 @@ export class VoiceSession {
 
   /** End the session and return summary */
   end(): SessionSummary {
-    // Disconnect STT
     if (this.sttPipeline) {
       this.sttPipeline.flush();
       this.sttPipeline.disconnect();
       this.sttPipeline = null;
     }
 
-    // Abort any in-progress response
     if (this.abortController) {
       this.abortController.abort();
     }
@@ -365,7 +408,6 @@ export class VoiceSession {
       this.ttsPipeline = null;
     }
 
-    // Disconnect the shared TTS WebSocket for this session
     if (this.ttsWebSocket) {
       this.ttsWebSocket.disconnect();
       this.ttsWebSocket = null;
@@ -404,7 +446,6 @@ export class VoiceSession {
   private buildMessages(): Array<{ role: string; content: string }> {
     const messages: Array<{ role: string; content: string }> = [];
 
-    // Inject pre-fetched context as system message
     if (this.preFetchedContext.hos) {
       const hos = this.preFetchedContext.hos;
       const contextParts: string[] = [];
@@ -429,7 +470,6 @@ export class VoiceSession {
       }
     }
 
-    // Add conversation history
     messages.push(...this.conversationHistory);
 
     return messages;

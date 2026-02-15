@@ -534,6 +534,24 @@ wss.on("connection", (ws) => {
         case "start_session": {
           const driverId = msg.driverId || DEFAULT_DRIVER_ID;
 
+          // Set driver location from client GPS if available
+          if (typeof msg.lat === "number" && typeof msg.lng === "number") {
+            if (!demoSession.driverLocation) {
+              demoSession.driverLocation = { city: "", state: "", lat: msg.lat, lng: msg.lng };
+            } else {
+              demoSession.driverLocation.lat = msg.lat;
+              demoSession.driverLocation.lng = msg.lng;
+            }
+            // Reverse geocode in background
+            reverseGeocode(msg.lat, msg.lng).then((geo) => {
+              if (demoSession.driverLocation) {
+                demoSession.driverLocation.city = geo.city;
+                demoSession.driverLocation.state = geo.state;
+              }
+            }).catch(() => {});
+            console.log(`[WS] Session started with GPS: ${msg.lat.toFixed(4)}, ${msg.lng.toFixed(4)}`);
+          }
+
           const session = new VoiceSession(driverId, mastra, {
             onStateChange: (state) => {
               sendJSON(ws, { type: "state_change", state });

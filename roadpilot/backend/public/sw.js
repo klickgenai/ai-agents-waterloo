@@ -1,4 +1,4 @@
-const CACHE_NAME = "roadpilot-v2";
+const CACHE_NAME = "roadpilot-v3";
 const PRECACHE_URLS = ["/", "/styles.css", "/manifest.json"];
 
 self.addEventListener("install", (event) => {

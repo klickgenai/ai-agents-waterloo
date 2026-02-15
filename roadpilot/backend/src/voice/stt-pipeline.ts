@@ -8,50 +8,43 @@ export interface STTCallbacks {
 
 const PULSE_WSS_URL = "wss://waves-api.smallest.ai/api/v1/pulse/get_text";
 
-// Trucking terminology — boost recognition for industry-specific words (weight 5-8)
-const TRUCKING_KEYWORDS = [
-  "deadhead:7", "dry van:8", "reefer:8", "flatbed:8", "hotshot:6",
-  "load board:8", "DAT:8", "broker:7", "rate con:7", "rate confirmation:7",
-  "BOL:8", "bill of lading:7", "IFTA:8", "ELD:8", "HOS:8",
-  "hours of service:7", "detention:6", "lumper:6", "pallet:5",
-  "drop and hook:7", "live load:7", "live unload:7",
-  "MC number:7", "DOT:7", "FMCSA:6", "CDL:7",
-  "truck stop:6", "Pilot:5", "Love's:5", "Flying J:5", "TA:5",
-  "fuel surcharge:6", "per mile:7", "rate per mile:8",
-  "tanker:6", "hazmat:7", "oversize:6", "LTL:7", "FTL:7",
-  "Tasha:9", "RoadPilot:9",
-].join(",");
-
 /**
- * Turn-based STT: opens a fresh Pulse connection per utterance.
- * Client signals speech_start → connect to Pulse, stream audio.
- * Client signals speech_end → send "end" to Pulse, collect final, disconnect.
+ * Per-utterance STT pipeline wrapping Pulse WebSocket.
  *
- * Optimizations:
- * - word_timestamps=false — we don't use them, reduces server-side overhead
- * - keywords — boosts trucking terminology for accurate recognition
+ * Pulse requires a FRESH WebSocket per utterance — after sending { type: "end" },
+ * the server closes the connection and won't process new audio on it.
+ *
+ * Usage:
+ *   connect()       — open connection (call early to pre-warm)
+ *   sendAudio()     — stream PCM audio
+ *   endUtterance()  — send "end", wait for final, return transcript, disconnect
+ *   disconnect()    — force-close (cleanup)
  */
 export class PulseSTTPipeline {
   private ws: WebSocket | null = null;
   private callbacks: STTCallbacks;
   private apiKey: string;
   private connected = false;
+  private connectPromise: Promise<void> | null = null;
+
+  // Per-utterance state
   private accumulatedFinalText = "";
   private lastInterimText = "";
+  private audioChunksSent = 0;
+  private gotAnyResponse = false;
+  private gotLastFinal = false;
 
   constructor(apiKey: string, callbacks: STTCallbacks) {
     this.apiKey = apiKey;
     this.callbacks = callbacks;
   }
 
-  /** Open a fresh Pulse connection for a new utterance */
+  /** Open Pulse WebSocket connection. Call early to pre-warm. */
   async connect(): Promise<void> {
-    // Disconnect any existing connection
-    this.disconnectQuiet();
-    this.accumulatedFinalText = "";
-    this.lastInterimText = "";
+    if (this.connected && this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.connectPromise) return this.connectPromise;
 
-    return new Promise((resolve, reject) => {
+    this.connectPromise = new Promise<void>((resolve, reject) => {
       const url = `${PULSE_WSS_URL}?language=en&sample_rate=16000&encoding=linear16`;
 
       this.ws = new WebSocket(url, {
@@ -63,6 +56,7 @@ export class PulseSTTPipeline {
       const timeout = setTimeout(() => {
         if (!this.connected) {
           this.disconnectQuiet();
+          this.connectPromise = null;
           reject(new Error("Pulse STT connection timeout"));
         }
       }, 5000);
@@ -70,23 +64,29 @@ export class PulseSTTPipeline {
       this.ws.on("open", () => {
         clearTimeout(timeout);
         this.connected = true;
-        console.log("[PulseSTT] Connected (new utterance)");
+        this.connectPromise = null;
+        console.log("[PulseSTT] Connected");
         resolve();
       });
 
       this.ws.on("message", (data: WebSocket.Data) => {
         try {
           const msg = JSON.parse(data.toString());
+          this.gotAnyResponse = true;
           console.log("[PulseSTT] Received:", JSON.stringify(msg).substring(0, 200));
 
-          // Pulse uses "transcript" field, not "text"
           const text = msg.transcript || msg.text;
           if (text) {
             if (msg.is_final) {
-              const finalText = text.trim();
-              if (finalText) {
-                this.accumulatedFinalText += (this.accumulatedFinalText ? " " : "") + finalText;
-                console.log("[PulseSTT] Final text:", finalText);
+              if (this.gotLastFinal) {
+                console.log("[PulseSTT] Ignoring duplicate final");
+              } else {
+                const finalText = text.trim();
+                if (finalText) {
+                  this.accumulatedFinalText += (this.accumulatedFinalText ? " " : "") + finalText;
+                  console.log("[PulseSTT] Final text:", finalText);
+                }
+                if (msg.is_last) this.gotLastFinal = true;
               }
             } else {
               this.lastInterimText = text.trim();
@@ -104,33 +104,96 @@ export class PulseSTTPipeline {
       this.ws.on("error", (err) => {
         clearTimeout(timeout);
         console.error("[PulseSTT] Error:", err.message);
+        this.connected = false;
+        this.connectPromise = null;
         this.callbacks.onError(err);
         if (!this.connected) reject(err);
       });
 
-      this.ws.on("close", () => {
+      this.ws.on("close", (code, reason) => {
         this.connected = false;
-        console.log("[PulseSTT] Disconnected");
+        this.connectPromise = null;
+        console.log(`[PulseSTT] Disconnected (code=${code})`);
       });
     });
+
+    return this.connectPromise;
+  }
+
+  /** Reset per-utterance state. Call before streaming audio for a new utterance. */
+  resetUtterance(): void {
+    this.accumulatedFinalText = "";
+    this.lastInterimText = "";
+    this.audioChunksSent = 0;
+    this.gotAnyResponse = false;
+    this.gotLastFinal = false;
   }
 
   sendAudio(pcmBuffer: Buffer): void {
     if (this.ws && this.connected && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(pcmBuffer);
+      // Apply gain boost to compensate for browser echo cancellation suppressing mic
+      const boosted = this.applyGain(pcmBuffer);
+      this.ws.send(boosted);
+      this.audioChunksSent++;
+      if (this.audioChunksSent % 10 === 1) {
+        const samples = new Int16Array(boosted.buffer, boosted.byteOffset, boosted.length / 2);
+        let sum = 0;
+        for (let i = 0; i < samples.length; i++) sum += (samples[i] / 32768) ** 2;
+        const rms = Math.sqrt(sum / samples.length);
+        console.log(`[PulseSTT] Audio chunk #${this.audioChunksSent}, RMS: ${rms.toFixed(5)} (gain: ${this.currentGain.toFixed(1)}x), size: ${boosted.length}b, gotResponse: ${this.gotAnyResponse}`);
+      }
     }
   }
 
   /**
-   * End the current utterance: send "end" to Pulse, wait briefly for finals,
-   * then flush and return the transcript.
+   * Auto-gain: boost quiet audio so Pulse can transcribe it even when
+   * browser echo cancellation is suppressing the mic after TTS playback.
+   * Targets RMS ~0.08. Caps gain at 8x to avoid amplifying pure noise.
+   */
+  private currentGain = 1.0;
+  private static readonly TARGET_RMS = 0.08;
+  private static readonly MAX_GAIN = 8.0;
+  private static readonly GAIN_SMOOTHING = 0.15; // How fast gain adapts (0-1)
+
+  private applyGain(pcmBuffer: Buffer): Buffer {
+    const samples = new Int16Array(pcmBuffer.buffer, pcmBuffer.byteOffset, pcmBuffer.length / 2);
+
+    // Measure raw RMS
+    let sum = 0;
+    for (let i = 0; i < samples.length; i++) sum += (samples[i] / 32768) ** 2;
+    const rawRms = Math.sqrt(sum / samples.length);
+
+    // Update adaptive gain
+    if (rawRms > 0.001) { // Only adjust if there's actual signal (not silence)
+      const idealGain = Math.min(PulseSTTPipeline.TARGET_RMS / rawRms, PulseSTTPipeline.MAX_GAIN);
+      this.currentGain = this.currentGain * (1 - PulseSTTPipeline.GAIN_SMOOTHING) + idealGain * PulseSTTPipeline.GAIN_SMOOTHING;
+    }
+
+    // If gain is close to 1x, skip processing
+    if (this.currentGain < 1.2) return pcmBuffer;
+
+    // Apply gain to a copy of the buffer
+    const output = Buffer.alloc(pcmBuffer.length);
+    const outSamples = new Int16Array(output.buffer, output.byteOffset, output.length / 2);
+    const gain = this.currentGain;
+    for (let i = 0; i < samples.length; i++) {
+      const amplified = samples[i] * gain;
+      // Clamp to int16 range
+      outSamples[i] = amplified > 32767 ? 32767 : amplified < -32768 ? -32768 : amplified;
+    }
+    return output;
+  }
+
+  /**
+   * End utterance: send "end" to Pulse, wait for final transcript,
+   * then DISCONNECT (Pulse won't accept new audio after "end").
    */
   async endUtterance(): Promise<string> {
     if (!this.ws || !this.connected) {
       return this.getBestText();
     }
 
-    // Send end signal to Pulse
+    // Send end signal
     try {
       if (this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(JSON.stringify({ type: "end" }));
@@ -139,11 +202,36 @@ export class PulseSTTPipeline {
       // ignore
     }
 
-    // Wait briefly for any final messages to arrive (keep short to reduce lag)
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait for final transcript
+    const waitMs = this.gotAnyResponse ? 300 : 800;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, waitMs);
+      const ws = this.ws;
+      if (!ws) { clearTimeout(timer); resolve(); return; }
+
+      const earlyResolve = (data: WebSocket.Data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg.is_final && msg.is_last) {
+            clearTimeout(timer);
+            ws.removeListener("message", earlyResolve);
+            resolve();
+          }
+        } catch { /* ignore */ }
+      };
+      ws.on("message", earlyResolve);
+      setTimeout(() => { ws.removeListener("message", earlyResolve); }, waitMs + 50);
+    });
+
+    if (!this.gotAnyResponse && this.audioChunksSent > 0) {
+      console.warn(`[PulseSTT] WARNING: Sent ${this.audioChunksSent} audio chunks but got NO response from Pulse`);
+    }
 
     const text = this.getBestText();
+
+    // Disconnect — Pulse won't accept new audio after "end"
     this.disconnectQuiet();
+
     return text;
   }
 
@@ -167,17 +255,12 @@ export class PulseSTTPipeline {
   }
 
   private getBestText(): string {
-    // Prefer accumulated final text, fall back to last interim
     return this.accumulatedFinalText.trim() || this.lastInterimText.trim();
   }
 
   private disconnectQuiet(): void {
     if (this.ws) {
-      try {
-        this.ws.close();
-      } catch {
-        // ignore
-      }
+      try { this.ws.close(); } catch { /* ignore */ }
       this.ws = null;
       this.connected = false;
     }
